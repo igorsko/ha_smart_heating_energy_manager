@@ -1,0 +1,79 @@
+"""Convert aligned historical samples to calibration intervals.
+
+Timestamp units are Unix seconds; temperature series are in Celsius and
+energy counters in kWh. Counter input for fuel generators is useful heat,
+not raw fuel energy. Never treat missing samples as zero.
+"""
+from bisect import bisect_right
+from dataclasses import dataclass
+from math import isfinite
+from .calibration import Interval
+
+@dataclass(frozen=True)
+class Sample:
+    timestamp: float
+    value: float | None
+
+class Series:
+    def __init__(self, samples):
+        self.samples = sorted(samples, key=lambda s:s.timestamp)
+        self.times = [s.timestamp for s in self.samples]
+
+    def value_at(self, timestamp, max_age):
+        idx = bisect_right(self.times,timestamp)-1
+        if idx < 0 or timestamp-self.times[idx] > max_age:
+            return None
+        value = self.samples[idx].value
+        return value if value is not None and isfinite(value) else None
+
+    def counter_delta(self, start, end, max_age):
+        a = self.value_at(start,max_age)
+        b = self.value_at(end,max_age)
+        if a is None or b is None or a < 0 or b < a:
+            return None
+        previous = a
+        for s in self.samples[bisect_right(self.times,start):bisect_right(self.times,end)]:
+            if s.value is None or not isfinite(s.value) or s.value < previous:
+                return None
+            previous = s.value
+        return b-a
+
+    def average(self, start, end, max_age):
+        value = self.value_at(start,max_age)
+        if value is None:
+            return None
+        pos = start
+        total = 0.
+        for s in self.samples[bisect_right(self.times,start):bisect_right(self.times,end)]:
+            if self.value_at(s.timestamp,max_age) is None or s.timestamp-pos > max_age:
+                return None
+            total += value*(s.timestamp-pos)
+            value,pos = s.value,s.timestamp
+        if self.value_at(end,max_age) is None or end-pos > max_age:
+            return None
+        return (total+value*(end-pos))/(end-start)
+
+def build_intervals(indoor,outdoor,counters,start,end,step_seconds=3600,max_age_seconds=7200):
+    """Use complete intervals only; counters is a sequence of (kind, Series)."""
+    if not all(isfinite(v) for v in (start,end,step_seconds,max_age_seconds)) or step_seconds <= 0 or max_age_seconds <= 0:
+        raise ValueError("Invalid history interval")
+    if not counters or any(kind not in ("fuel","heat_pump","resistance") for kind,_ in counters):
+        return []
+    result = []
+    while start+step_seconds <= end:
+        stop=start+step_seconds
+        a=indoor.value_at(start,max_age_seconds)
+        b=indoor.value_at(stop,max_age_seconds)
+        t=outdoor.average(start,stop,max_age_seconds)
+        totals={"fuel":0.,"heat_pump":0.,"resistance":0.}
+        valid=all(v is not None for v in (a,b,t))
+        for kind,series in counters:
+            energy=series.counter_delta(start,stop,max_age_seconds)
+            if energy is None:
+                valid=False
+                break
+            totals[kind]+=energy
+        if valid:
+            result.append(Interval(step_seconds/3600,a,b,t,totals["fuel"],totals["heat_pump"],totals["resistance"]))
+        start=stop
+    return result

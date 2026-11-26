@@ -21,6 +21,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         k:v for k,v in SENSORS.items() if k in ("heat_demand","electricity_price","recommended_source")
     }
     async_add_entities([HeatingSensor(entry, key, name, unit) for key, (name, unit) in specs.items()], True)
+    if entry.options.get("history_enabled",False):
+        async_add_entities([CalibrationDiagnostic(entry)], False)
 
 class HeatingSensor(SensorEntity):
     _attr_should_poll = True
@@ -73,3 +75,39 @@ class HeatingSensor(SensorEntity):
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
             "thermal_model": "configured_not_calibrated",
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}
+
+class CalibrationDiagnostic(SensorEntity):
+    """Opt-in read-only daily calibration diagnostic."""
+    _attr_should_poll = False
+    _attr_name = "Thermal calibration status"
+
+    def __init__(self, entry):
+        self._config = {**entry.data, **entry.options}
+        self._attr_unique_id = f"{entry.entry_id}_calibration"
+        self._attr_native_value = "pending"
+        self._lock = None
+
+    async def async_added_to_hass(self):
+        import asyncio
+        from homeassistant.helpers.event import async_track_time_interval
+        self._lock = asyncio.Lock()
+        self.async_on_remove(async_track_time_interval(self.hass, self._refresh, timedelta(days=1)))
+        self.async_on_remove(self.hass.async_create_task(self._refresh()).cancel)
+
+    async def _refresh(self, now=None):
+        if self._lock.locked():
+            return
+        async with self._lock:
+            try:
+                from .recorder_adapter import async_calibrate
+                if "recorder" not in self.hass.config.components:
+                    result = {"status": "recorder_unavailable"}
+                else:
+                    result = await async_calibrate(self.hass, self._config)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("Historical calibration failed")
+                result = {"status": "error"}
+            self._attr_native_value = result["status"]
+            self._attr_extra_state_attributes = result
+            self.async_write_ha_state()

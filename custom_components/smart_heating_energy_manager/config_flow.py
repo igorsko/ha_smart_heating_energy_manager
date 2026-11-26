@@ -75,6 +75,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                 Generator(key, user_input["kind"], user_input["efficiency"],
                           user_input["capacity_kw"], user_input["fuel_price"],
                           user_input["fuel_quantity"], user_input["fuel_energy_kwh"])
+                from .fuel import parse_rates
+                rates=parse_rates(user_input.get("level_rates",""))
+                if rates and (user_input["kind"]!="fuel" or not user_input.get("level_entity") or not user_input.get("state_entity") or user_input["level_entity"]==user_input["state_entity"]):
+                    raise ValueError("Level rates require distinct state and level sensors")
                 if not user_input["name"].strip():
                     raise ValueError("Empty name")
             except ValueError:
@@ -99,6 +103,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("enabled", True): bool,
             required("energy_is_useful_heat", False): bool,
             required("manual_input_rate", 0.0): vol.All(vol.Coerce(float),vol.Range(min=0,max=10000)),
+            required("fuel_mass_unit", "kg"): vol.In(["g","kg","t","lb"]),
+            required("level_rates", ""): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+            optional("fuel_mass_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+            optional("level_entity"): selector.EntitySelector(),
             required("active_states", ""): str,
             required("inactive_states", ""): str,
             optional("control_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"])),

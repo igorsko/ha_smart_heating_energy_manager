@@ -7,6 +7,7 @@ from homeassistant.util import dt as dt_util
 from .calibration import fit
 from .history_input import Sample, Series, RateSeries, build_intervals
 from .model import finite
+from .fuel import parse_rates, fuel_rate_series, mass_to_units
 
 def convert(value, unit, kind):
     n = finite(value)
@@ -49,7 +50,7 @@ async def async_calibrate(hass, config):
     devices=list(config.get("generators",{}).items())
     if not devices:
         return {"status":"no_generators"}
-    ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity") if g.get(k)]))
+    ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity") if g.get(k)]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -69,10 +70,26 @@ async def async_calibrate(hass, config):
                     entity=g.get(field)
                     if entity:
                         choices.append((field,entity,_series(states.get(entity,[]),kind,factor)))
+            if g["kind"]=="fuel":
+                entity=g.get("fuel_mass_entity")
+                if entity:
+                    factor=g["fuel_energy_kwh"]*g["efficiency"]
+                    samples=[]
+                    for s in states.get(entity,[]):
+                        value=mass_to_units(finite(s.state),s.attributes.get("unit_of_measurement"),g.get("fuel_mass_unit","kg"))
+                        samples.append(Sample(s.last_updated.timestamp(),None if value is None else value*factor))
+                    choices.insert(0,("fuel_mass",entity,Series(samples)))
             entity=g.get("state_entity")
             if entity:
+                level=g.get("level_entity")
+                rates=parse_rates(g.get("level_rates",""))
+                active={s.strip() for s in g.get("active_states","").split(",") if s.strip()}
+                inactive={s.strip() for s in g.get("inactive_states","").split(",") if s.strip()}
+                if g["kind"]=="fuel" and level and rates and active and inactive and not active & inactive and level != entity:
+                    raw=lambda e:[Sample(s.last_updated.timestamp(),s.state) for s in states.get(e,[])]
+                    choices.append(("level_runtime",entity,fuel_rate_series(raw(entity),raw(level),rates,active,inactive,g["fuel_energy_kwh"]*g["efficiency"],age)))
                 manual=_runtime(states.get(entity,[]),g)
-                if manual:
+                if manual and not g.get('level_rates','').strip():
                     choices.append(("manual_runtime",entity,manual))
             report={}
             selected=None

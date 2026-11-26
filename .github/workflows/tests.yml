@@ -12,3 +12,4 @@ jobs:
           python-version: '3.13'
       - run: python -m compileall -q custom_components
       - run: python -m unittest discover -s tests -v
+      - run: node --check custom_components/smart_heating_energy_manager/frontend/panel.js

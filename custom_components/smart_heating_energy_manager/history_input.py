@@ -53,6 +53,12 @@ class Series:
             return None
         return (total+value*(end-pos))/(end-start)
 
+class RateSeries(Series):
+    """Integrate a recorded rate in kW, or a user-defined rate mapped from state."""
+    def counter_delta(self, start, end, max_age):
+        avg = self.average(start,end,max_age)
+        return None if avg is None or avg < 0 else avg*(end-start)/3600
+
 def build_intervals(indoor,outdoor,counters,start,end,step_seconds=3600,max_age_seconds=7200):
     """Use complete intervals only; counters is a sequence of (kind, Series)."""
     if not all(isfinite(v) for v in (start,end,step_seconds,max_age_seconds)) or step_seconds <= 0 or max_age_seconds <= 0:

@@ -3,12 +3,7 @@
     "step": {
       "user": {
         "title": "Smart Heating Energy Manager",
-        "description": "Complete setup without technical parameters. Select temperatures and electricity price only if known; you can configure them later.",
-        "data": {
-          "indoor": "Indoor thermometer (optional)",
-          "outdoor": "Outdoor thermometer (optional)",
-          "fixed": "All-inclusive electricity price (EUR/kWh, optional)"
-        }
+        "description": "Install Smart Heating. Home Assistant areas are detected automatically; configure mappings from the dashboard and integration options."
       }
     }
   },
@@ -24,7 +19,8 @@
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
           "tariff": "Electricity tariff",
-          "display": "Display"
+          "display": "Display",
+          "zones": "Heating zones"
         }
       },
       "add_generator": {
@@ -157,11 +153,26 @@
         "data": {
           "show_panel": "Show Smart Heating in sidebar"
         }
+      },
+      "zones": {
+        "title": "Select area",
+        "data": {
+          "area": "Home Assistant area"
+        }
+      },
+      "zone_details": {
+        "title": "Configure zone",
+        "description": "Map thermometer and heating sources to {area}.",
+        "data": {
+          "temperature": "Thermometer",
+          "sources": "Heating sources"
+        }
       }
     },
     "error": {
       "invalid_generator": "Invalid generator parameters",
-      "no_discovered_entities": "No compatible entities"
+      "no_discovered_entities": "No compatible entities",
+      "no_areas": "No Home Assistant areas configured"
     }
   }
 }

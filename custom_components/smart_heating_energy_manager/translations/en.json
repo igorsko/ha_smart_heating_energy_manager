@@ -36,7 +36,8 @@
           "building": "Building and sensors",
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
-          "tariff": "Electricity tariff"
+          "tariff": "Electricity tariff",
+          "display": "Display"
         }
       },
       "add_generator": {
@@ -162,6 +163,12 @@
           "variable": "Variable charges",
           "tax": "Excise",
           "vat": "VAT fraction"
+        }
+      },
+      "display": {
+        "title": "Display",
+        "data": {
+          "show_panel": "Show Smart Heating in sidebar"
         }
       }
     },

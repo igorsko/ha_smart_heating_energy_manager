@@ -17,16 +17,8 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="Smart Heating Energy Manager", data={
-                **user_input, "history_enabled": True, "use_index": bool(user_input.get("pun")),
-                "spread": 0., "losses": 0., "variable": 0., "tax": 0., "vat": 0.
-            })
-        temperature = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature"))
-        return self.async_show_form(step_id="user", data_schema=vol.Schema({
-            vol.Optional("indoor"): temperature,
-            vol.Optional("outdoor"): temperature,
-            vol.Optional("fixed"): vol.All(vol.Coerce(float),vol.Range(min=0,max=10)),
-        }))
+            return self.async_create_entry(title="Smart Heating Energy Manager",data={"history_enabled":True})
+        return self.async_show_form(step_id="user",data_schema=vol.Schema({}))
 
 class DeviceOptionsFlow(config_entries.OptionsFlow):
     """Manage optional devices without changing the installation's entity IDs."""
@@ -35,7 +27,39 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", {}))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "display", "finish"])
+            "zones", "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "display", "finish"])
+
+    async def async_step_zones(self,user_input=None):
+        from .areas import discover_areas
+        areas=discover_areas(self.hass)
+        if user_input is not None:
+            self._area=user_input["area"]
+            return await self.async_step_zone_details()
+        return self.async_show_form(step_id="zones",data_schema=vol.Schema({
+            vol.Required("area"):vol.In({k:v["name"] for k,v in areas.items()})
+        }),errors={"base":"no_areas"} if not areas else {})
+
+    async def async_step_zone_details(self,user_input=None):
+        from .areas import discover_areas
+        area=discover_areas(self.hass).get(self._area)
+        if area is None:
+            return await self.async_step_zones()
+        zones=dict(self.options.get("zones",self.config_entry.data.get("zones",{})))
+        if user_input is not None:
+            zones[self._area]={"temperature":user_input.get("temperature"),
+                "sources":user_input.get("sources",[]),"confirmed":True}
+            self.options["zones"]=zones
+            return self._save()
+        old=zones.get(self._area,{})
+        candidates=area["temperature_candidates"]
+        temperature=old.get("temperature") if old.get("confirmed") else candidates[0] if len(candidates)==1 else None
+        sources=old.get("sources",[]) if old.get("confirmed") else area["source_candidates"]
+        return self.async_show_form(step_id="zone_details",description_placeholders={"area":area["name"]},data_schema=vol.Schema({
+            vol.Optional("temperature",description={"suggested_value":temperature} if temperature else {}):
+                selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("sources",description={"suggested_value":sources}):
+                selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"],multiple=True))
+        }))
 
     async def async_step_discover_winnet(self, user_input=None):
         from homeassistant.helpers import entity_registry as er

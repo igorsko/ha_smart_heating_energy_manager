@@ -17,22 +17,16 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="Smart Heating Energy Manager", data=user_input)
-        number = lambda low, high: vol.All(vol.Coerce(float), vol.Range(min=low, max=high))
-        schema = vol.Schema({
-            vol.Required("indoor"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature")),
-            vol.Required("outdoor"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature")),
-            vol.Optional("pun"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-            vol.Required("use_index", default=False): bool,
-            vol.Required("fixed", default=0.30): number(0, 10),
-            vol.Required("spread", default=0.0): number(0, 10),
-            vol.Required("losses", default=0.0): number(0, 1),
-            vol.Required("variable", default=0.0): number(0, 10),
-            vol.Required("tax", default=0.0): number(0, 10),
-            vol.Required("vat", default=0.0): number(0, 1),
-            vol.Required("h"): number(1, 10000),
-        })
-        return self.async_show_form(step_id="user", data_schema=schema)
+            return self.async_create_entry(title="Smart Heating Energy Manager", data={
+                **user_input, "history_enabled": True, "use_index": bool(user_input.get("pun")),
+                "spread": 0., "losses": 0., "variable": 0., "tax": 0., "vat": 0.
+            })
+        temperature = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature"))
+        return self.async_show_form(step_id="user", data_schema=vol.Schema({
+            vol.Optional("indoor"): temperature,
+            vol.Optional("outdoor"): temperature,
+            vol.Optional("fixed"): vol.All(vol.Coerce(float),vol.Range(min=0,max=10)),
+        }))
 
 class DeviceOptionsFlow(config_entries.OptionsFlow):
     """Manage optional devices without changing the installation's entity IDs."""
@@ -61,11 +55,13 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_tariff(self,user_input=None):
         if user_input is not None:
             self.options.update(user_input)
+            self.options["fixed"] = user_input.get("fixed")
             self.options["pun"] = user_input.get("pun","")
             return self._save()
         current = {**self.config_entry.data, **self.options}
-        fields = {"fixed":.30,"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
+        fields = {"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
         schema = {vol.Required(k,default=current.get(k,v)):vol.All(vol.Coerce(float),vol.Range(min=0,max=1 if k in ("vat","losses") else 10)) for k,v in fields.items()}
+        schema[vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {})]=vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
         schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
         schema[vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         return self.async_show_form(step_id="tariff",data_schema=vol.Schema(schema))
@@ -149,12 +145,14 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_building(self, user_input=None):
         if user_input is not None:
             self.options.update(user_input)
+            for field in ("indoor","outdoor","h"):
+                self.options[field] = user_input.get(field)
             return self._save()
         current = {**self.config_entry.data, **self.options}
         schema = vol.Schema({
-            vol.Required("indoor",default=current["indoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-            vol.Required("outdoor",default=current["outdoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-            vol.Required("h",default=current["h"]): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
+            vol.Optional("indoor",description={"suggested_value":current["indoor"]} if current.get("indoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("outdoor",description={"suggested_value":current["outdoor"]} if current.get("outdoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("h",description={"suggested_value":current["h"]} if current.get("h") else {}): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
             vol.Required("history_enabled",default=current.get("history_enabled",False)): bool,
             vol.Required("history_min_coverage",default=current.get("history_min_coverage",.7)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=1)),

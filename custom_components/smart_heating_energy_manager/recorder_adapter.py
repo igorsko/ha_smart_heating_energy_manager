@@ -91,12 +91,14 @@ async def async_calibrate(hass, config):
                 rate_entity=g.get("fuel_rate_entity")
                 if g["kind"]=="fuel" and rate_entity and rate_entity != entity and active and inactive and not active & inactive:
                     from .fuel import recorded_rate_series
-                    choices.insert(0,("recorded_fuel_rate",entity,recorded_rate_series(
+                    choices.append(("recorded_fuel_rate",entity,recorded_rate_series(
                         states.get(entity,[]),states.get(rate_entity,[]),active,inactive,
                         g.get("fuel_mass_unit","kg"),g["fuel_energy_kwh"]*g["efficiency"],age)))
                 manual=_runtime(states.get(entity,[]),g)
                 if manual and not g.get('level_rates','').strip():
                     choices.append(("manual_runtime",entity,manual))
+            priority={"fuel_mass":0,"energy_entity":1,"power_entity":2,"fuel_mass_estimated":3,"recorded_fuel_rate":4,"level_runtime":5,"manual_runtime":6}
+            choices.sort(key=lambda item:priority[item[0]])
             report={}
             selected=None
             for method,entity,series in choices:

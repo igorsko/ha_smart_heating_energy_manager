@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Heating Energy Manager",
+        "description": "Advisory mode. Prices in EUR/kWh; fractions for losses, VAT and efficiency. Enable index only if it matches your contract.",
+        "data": {
+          "indoor": "Indoor temperature",
+          "outdoor": "Outdoor temperature",
+          "pun": "Price index sensor",
+          "use_index": "Use price index",
+          "fixed": "Fixed all-inclusive price",
+          "spread": "Supplier spread",
+          "losses": "Grid loss fraction",
+          "variable": "Variable charges",
+          "tax": "Excise",
+          "vat": "VAT fraction",
+          "h": "Heat loss coefficient (W/K)",
+          "cop": "Estimated COP",
+          "pellet_price": "Pellet bag price",
+          "pellet_mass": "Bag mass (kg)",
+          "lhv": "Pellet energy (kWh/kg)",
+          "efficiency": "Stove efficiency"
+        }
+      }
+    }
+  }
+}

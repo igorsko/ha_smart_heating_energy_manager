@@ -24,5 +24,76 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configurazione impianto",
+        "menu_options": {
+          "add_generator": "Aggiungi generatore",
+          "edit_generator": "Modifica generatore",
+          "remove_generator": "Rimuovi generatore",
+          "building": "Abitazione e sensori",
+          "finish": "Salva"
+        }
+      },
+      "add_generator": {
+        "title": "Aggiungi generatore",
+        "data": {
+          "name": "Nome",
+          "kind": "Tipologia",
+          "efficiency": "COP o rendimento (frazione)",
+          "capacity_kw": "Potenza termica (kW)",
+          "fuel_price": "Prezzo combustibile",
+          "fuel_quantity": "Quantità acquistata",
+          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
+          "enabled": "Abilitato",
+          "control_entity": "Entità di comando (solo associazione)",
+          "state_entity": "Entità di stato",
+          "energy_entity": "Contatore energia",
+          "power_entity": "Sensore potenza",
+          "temperature_entity": "Sensore temperatura"
+        }
+      },
+      "edit_details": {
+        "title": "Modifica generatore",
+        "data": {
+          "name": "Nome",
+          "kind": "Tipologia",
+          "efficiency": "COP o rendimento (frazione)",
+          "capacity_kw": "Potenza termica (kW)",
+          "fuel_price": "Prezzo combustibile",
+          "fuel_quantity": "Quantità acquistata",
+          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
+          "enabled": "Abilitato",
+          "control_entity": "Entità di comando (solo associazione)",
+          "state_entity": "Entità di stato",
+          "energy_entity": "Contatore energia",
+          "power_entity": "Sensore potenza",
+          "temperature_entity": "Sensore temperatura"
+        }
+      },
+      "edit_generator": {
+        "data": {
+          "generator": "Generatore"
+        }
+      },
+      "remove_generator": {
+        "data": {
+          "generator": "Generatore"
+        }
+      },
+      "building": {
+        "data": {
+          "indoor": "Temperatura interna",
+          "outdoor": "Temperatura esterna",
+          "h": "Dispersioni (W/K)",
+          "index_max_age_hours": "Validità massima indice (ore)"
+        }
+      }
+    },
+    "error": {
+      "invalid_generator": "Parametri del generatore non validi"
+    }
   }
 }

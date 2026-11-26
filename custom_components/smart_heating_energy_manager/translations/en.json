@@ -24,5 +24,76 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Heating configuration",
+        "menu_options": {
+          "add_generator": "Add generator",
+          "edit_generator": "Edit generator",
+          "remove_generator": "Remove generator",
+          "building": "Building and sensors",
+          "finish": "Save"
+        }
+      },
+      "add_generator": {
+        "title": "Add generator",
+        "data": {
+          "name": "Name",
+          "kind": "Type",
+          "efficiency": "COP or efficiency fraction",
+          "capacity_kw": "Thermal capacity (kW)",
+          "fuel_price": "Fuel price",
+          "fuel_quantity": "Purchased quantity",
+          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
+          "enabled": "Enabled",
+          "control_entity": "Control entity (mapping only)",
+          "state_entity": "State entity",
+          "energy_entity": "Energy meter",
+          "power_entity": "Power sensor",
+          "temperature_entity": "Temperature sensor"
+        }
+      },
+      "edit_details": {
+        "title": "Edit generator",
+        "data": {
+          "name": "Name",
+          "kind": "Type",
+          "efficiency": "COP or efficiency fraction",
+          "capacity_kw": "Thermal capacity (kW)",
+          "fuel_price": "Fuel price",
+          "fuel_quantity": "Purchased quantity",
+          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
+          "enabled": "Enabled",
+          "control_entity": "Control entity (mapping only)",
+          "state_entity": "State entity",
+          "energy_entity": "Energy meter",
+          "power_entity": "Power sensor",
+          "temperature_entity": "Temperature sensor"
+        }
+      },
+      "edit_generator": {
+        "data": {
+          "generator": "Generator"
+        }
+      },
+      "remove_generator": {
+        "data": {
+          "generator": "Generator"
+        }
+      },
+      "building": {
+        "data": {
+          "indoor": "Indoor temperature",
+          "outdoor": "Outdoor temperature",
+          "h": "Heat loss (W/K)",
+          "index_max_age_hours": "Maximum index age (hours)"
+        }
+      }
+    },
+    "error": {
+      "invalid_generator": "Invalid generator parameters"
+    }
   }
 }

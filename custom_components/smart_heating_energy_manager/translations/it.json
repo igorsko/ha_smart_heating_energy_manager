@@ -53,7 +53,10 @@
           "energy_entity": "Contatore energia",
           "power_entity": "Sensore potenza",
           "temperature_entity": "Sensore temperatura",
-          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile"
+          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
+          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
+          "active_states": "Stati di erogazione effettiva (separati da virgola)",
+          "inactive_states": "Stati senza erogazione (separati da virgola)"
         }
       },
       "edit_details": {
@@ -72,7 +75,10 @@
           "energy_entity": "Contatore energia",
           "power_entity": "Sensore potenza",
           "temperature_entity": "Sensore temperatura",
-          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile"
+          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
+          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
+          "active_states": "Stati di erogazione effettiva (separati da virgola)",
+          "inactive_states": "Stati senza erogazione (separati da virgola)"
         }
       },
       "edit_generator": {
@@ -94,7 +100,8 @@
           "history_enabled": "Abilita calibrazione storica sperimentale",
           "history_days": "Giorni di storico",
           "history_interval_minutes": "Intervallo di analisi (minuti)",
-          "history_max_age_hours": "Età massima campione (ore)"
+          "history_max_age_hours": "Età massima campione (ore)",
+          "history_min_coverage": "Copertura minima storico (frazione)"
         }
       }
     },

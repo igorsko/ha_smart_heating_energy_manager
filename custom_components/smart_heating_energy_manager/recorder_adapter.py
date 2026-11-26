@@ -47,6 +47,8 @@ def _coverage(series,start,end,step,age):
     return valid/total if total else 0
 
 async def async_calibrate(hass, config):
+    if not config.get("indoor") or not config.get("outdoor"):
+        return {"status":"configure_temperature_sensors"}
     devices=list(config.get("generators",{}).items())
     if not devices:
         return {"status":"no_generators"}

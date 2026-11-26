@@ -105,6 +105,8 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("manual_input_rate", 0.0): vol.All(vol.Coerce(float),vol.Range(min=0,max=10000)),
             required("fuel_mass_unit", "kg"): vol.In(["g","kg","t","lb"]),
             required("level_rates", ""): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+            required("fuel_mass_estimated", False): bool,
+            optional("fuel_rate_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("fuel_mass_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("level_entity"): selector.EntitySelector(),
             required("active_states", ""): str,

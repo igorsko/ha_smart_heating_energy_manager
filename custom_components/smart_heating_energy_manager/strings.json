@@ -3,25 +3,7 @@
     "step": {
       "user": {
         "title": "Smart Heating Energy Manager",
-        "description": "Advisory mode. Prices in EUR/kWh; fractions for losses, VAT and efficiency. Enable index only if it matches your contract.",
-        "data": {
-          "indoor": "Indoor temperature",
-          "outdoor": "Outdoor temperature",
-          "pun": "Price index sensor",
-          "use_index": "Use price index",
-          "fixed": "Fixed all-inclusive price",
-          "spread": "Supplier spread",
-          "losses": "Grid loss fraction",
-          "variable": "Variable charges",
-          "tax": "Excise",
-          "vat": "VAT fraction",
-          "h": "Heat loss coefficient (W/K)",
-          "cop": "Estimated COP",
-          "pellet_price": "Pellet bag price",
-          "pellet_mass": "Bag mass (kg)",
-          "lhv": "Pellet energy (kWh/kg)",
-          "efficiency": "Stove efficiency"
-        }
+        "description": "Install Smart Heating. Home Assistant areas are detected automatically; configure mappings from the dashboard and integration options."
       }
     }
   },
@@ -37,7 +19,8 @@
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
           "tariff": "Electricity tariff",
-          "display": "Display"
+          "display": "Display",
+          "zones": "Heating zones"
         }
       },
       "add_generator": {
@@ -170,11 +153,26 @@
         "data": {
           "show_panel": "Show Smart Heating in sidebar"
         }
+      },
+      "zones": {
+        "title": "Select area",
+        "data": {
+          "area": "Home Assistant area"
+        }
+      },
+      "zone_details": {
+        "title": "Configure zone",
+        "description": "Map thermometer and heating sources to {area}.",
+        "data": {
+          "temperature": "Thermometer",
+          "sources": "Heating sources"
+        }
       }
     },
     "error": {
       "invalid_generator": "Invalid generator parameters",
-      "no_discovered_entities": "No compatible entities"
+      "no_discovered_entities": "No compatible entities",
+      "no_areas": "No Home Assistant areas configured"
     }
   }
 }

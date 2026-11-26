@@ -11,7 +11,7 @@ class SmartHeatingPanel extends HTMLElement {
     const tr=(a,b)=>it?a:b;
     const state=id=>this._hass.states[id];
     const val=id=>{const s=state(id);return !s||["unknown","unavailable"].includes(s.state)?"—":s.state+(s.attributes.unit_of_measurement?" "+s.attributes.unit_of_measurement:"");};
-    const pages=[["overview",tr("Panoramica","Overview")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["settings",tr("Impostazioni","Settings")]];
+    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["settings",tr("Impostazioni","Settings")]];
     const card=(title,value)=>'<article><small>'+html(title)+'</small><strong>'+html(value)+'</strong></article>';
     const installations=this._panel.config?.installations||[];
     const sections=installations.map(e=>{
@@ -22,8 +22,12 @@ class SmartHeatingPanel extends HTMLElement {
       const overview='<div class="grid">'+card(tr("Temperatura interna","Indoor temperature"),val(e.indoor))+card(tr("Temperatura esterna","Outdoor temperature"),val(e.outdoor))+card(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand))+card(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source))+card(tr("Prezzo elettricità","Electricity price"),val(ids.electricity_price))+'</div>';
       const generators='<article><h2>'+tr("Confronto generatori","Generator comparison")+'</h2>'+(rows?'<table><thead><tr><th>'+tr("Generatore","Generator")+'</th><th>'+tr("Stato","State")+'</th><th>'+tr("Costo termico","Heat cost")+'</th></tr></thead><tbody>'+rows+'</tbody></table>':html(tr("Nessun generatore configurato","No generators configured")))+'</article>';
       const learning='<article><h2>'+tr("Modello termico","Thermal model")+'</h2><div class="grid">'+card(tr("Dispersioni","Heat loss"),fit.loss_w_k!=null?Number(fit.loss_w_k).toFixed(1)+" W/K":"—")+card(tr("Inerzia","Thermal capacity"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":"—")+card("COP",fit.cop!=null?Number(fit.cop).toFixed(2):"—")+card(tr("Campioni validi","Valid samples"),fit.samples??"—")+card(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+'</div></article>';
+      const zones='<article><h2>'+tr("Zone termiche rilevate","Discovered heating zones")+'</h2><div class="grid">'+Object.values(e.zones||{}).map(z=>{
+        const names=ids=>ids.map(id=>html(state(id)?.attributes?.friendly_name||id)).join(", ");
+        return '<article><h2>'+html(z.name)+'</h2><p>'+html(z.confirmed?tr("Configurata","Configured"):tr("Da confermare","Needs confirmation"))+'</p><strong>'+html(val(z.temperature))+'</strong><p>'+tr("Termometri rilevati: ","Detected thermometers: ")+(names(z.temperature_candidates||[])||"—")+'</p><p>'+tr("Fonti di riscaldamento: ","Heating sources: ")+(names(z.confirmed?(z.sources||[]):(z.source_candidates||[]))||"—")+'</p></article>';
+      }).join("")+'</div><p><a href="/config/integrations">'+tr("Configura zone nelle opzioni","Configure zones in integration options")+'</a></p></article>';
       const settings='<article><h2>'+tr("Configurazione","Configuration")+'</h2><p>'+tr("Modifica sensori, generatori e tariffe nelle opzioni dell’integrazione.","Edit sensors, generators and tariffs in integration options.")+'</p><a href="/config/integrations">'+tr("Apri integrazioni","Open integrations")+'</a></article>';
-      return '<section><h2>'+html(e.title)+'</h2>'+({overview:overview+generators+learning,generators,learning,settings}[this._page]||overview)+'</section>';
+      return '<section><h2>'+html(e.title)+'</h2>'+({overview:overview+zones+generators+learning,zones,generators,learning,settings}[this._page]||overview)+'</section>';
     }).join("");
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;color:var(--primary-text-color);background:var(--primary-background-color);font-family:var(--paper-font-body1_-_font-family,system-ui);min-height:100vh}

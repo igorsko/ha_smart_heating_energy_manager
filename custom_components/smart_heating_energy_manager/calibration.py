@@ -1,0 +1,108 @@
+"""Offline identification of a first-order building thermal model.
+
+Inputs are interval-average measurements, not instantaneous samples.
+No actuator control. Estimates are conditional on omitted heat gains.
+"""
+from dataclasses import dataclass
+import math
+
+@dataclass(frozen=True)
+class Interval:
+    hours: float
+    indoor_start: float
+    indoor_end: float
+    outdoor: float
+    stove_kwh: float
+    hp_kwh: float
+    resistance_kwh: float
+
+@dataclass(frozen=True)
+class Fit:
+    loss_w_k: float
+    capacity_kwh_k: float
+    cop: float
+    rmse_kw: float
+    samples: int
+
+@dataclass(frozen=True)
+class CalibrationSettings:
+    min_hours: float = .25
+    max_hours: float = 6
+    min_temperature: float = -60
+    max_temperature: float = 70
+    max_rate: float = 4
+    min_samples: int = 24
+    min_pivot: float = .02
+    min_loss_w_k: float = 10
+    max_loss_w_k: float = 5000
+    min_capacity: float = .1
+    max_capacity: float = 200
+    min_cop: float = 1
+    max_cop: float = 8
+    max_rmse_kw: float = 2
+
+    def __post_init__(self):
+        pairs = ((self.min_hours,self.max_hours),
+                 (self.min_temperature,self.max_temperature),
+                 (self.min_loss_w_k,self.max_loss_w_k),
+                 (self.min_capacity,self.max_capacity),
+                 (self.min_cop,self.max_cop))
+        if any(not math.isfinite(a) or not math.isfinite(b) or a >= b for a,b in pairs):
+            raise ValueError("Invalid calibration bounds")
+        if (min(self.min_hours,self.min_loss_w_k,self.min_capacity,self.min_cop) <= 0
+                or not isinstance(self.min_samples,int) or self.min_samples < 3
+                or not all(math.isfinite(x) and x > 0 for x in
+                           (self.max_rate,self.min_pivot,self.max_rmse_kw))
+                or self.min_pivot > 1):
+            raise ValueError("Invalid calibration settings")
+
+def fit(intervals, settings=None):
+    """Fit H, C and COP by scaled least squares; reject weak identification.
+
+    Balance: H*deltaT + C*dT/dt - COP*P_hp = P_stove + P_resistance.
+    H is in kW/K. Zero Celsius is valid. Invalid intervals are skipped.
+    """
+    cfg = settings or CalibrationSettings()
+    rows, targets = [], []
+    for s in intervals:
+        vals = (s.hours, s.indoor_start, s.indoor_end, s.outdoor,
+                s.stove_kwh, s.hp_kwh, s.resistance_kwh)
+        if not all(math.isfinite(x) for x in vals):
+            continue
+        if not cfg.min_hours <= s.hours <= cfg.max_hours or min(vals[4:]) < 0:
+            continue
+        if not all(cfg.min_temperature <= x <= cfg.max_temperature for x in vals[1:4]):
+            continue
+        delta = (s.indoor_start + s.indoor_end) / 2 - s.outdoor
+        rate = (s.indoor_end - s.indoor_start) / s.hours
+        if abs(rate) > cfg.max_rate:
+            continue
+        rows.append([delta, rate, -s.hp_kwh / s.hours])
+        targets.append((s.stove_kwh + s.resistance_kwh) / s.hours)
+    if len(rows) < cfg.min_samples:
+        return None
+    scales = [math.sqrt(sum(r[i]**2 for r in rows)) for i in range(3)]
+    if min(scales) < 1e-8:
+        return None
+    normalized = [[r[i]/scales[i] for i in range(3)] for r in rows]
+    a = [[sum(r[i]*r[j] for r in normalized) for j in range(3)] +
+         [sum(r[i]*y for r,y in zip(normalized, targets))] for i in range(3)]
+    for i in range(3):
+        pivot = max(range(i,3), key=lambda k: abs(a[k][i]))
+        a[i],a[pivot] = a[pivot],a[i]
+        p = a[i][i]
+        if abs(p) < cfg.min_pivot:
+            return None
+        a[i] = [v/p for v in a[i]]
+        for j in range(3):
+            if j != i:
+                factor = a[j][i]
+                a[j] = [v-factor*w for v,w in zip(a[j],a[i])]
+    h,c,cop = [a[i][3]/scales[i] for i in range(3)]
+    if not (cfg.min_loss_w_k <= h*1000 <= cfg.max_loss_w_k and cfg.min_capacity <= c <= cfg.max_capacity and cfg.min_cop <= cop <= cfg.max_cop):
+        return None
+    rmse = math.sqrt(sum((sum(v*w for v,w in zip(r,(h,c,cop)))-y)**2
+                         for r,y in zip(rows,targets))/len(rows))
+    if rmse > cfg.max_rmse_kw:
+        return None
+    return Fit(h*1000,c,cop,rmse,len(rows))

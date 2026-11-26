@@ -58,7 +58,7 @@ class HeatingSensor(SensorEntity):
             index.attributes.get("unit_of_measurement") if index else None,
             d.get("fixed"), d.get("spread",0), d.get("losses",0), d.get("variable",0), d.get("tax",0), d.get("vat",0))
         indoor, outdoor = self._temperature(d.get("indoor")), self._temperature(d.get("outdoor"))
-        if "generators" not in d and "cop" in d:
+        if "generators" not in d and "cop" in d and d.get("h") is not None and price is not None:
             result = estimate(indoor, outdoor, d["h"], price, d["cop"], d["pellet_price"],
                               d["pellet_mass"], d["lhv"], d["efficiency"])
             candidates = []
@@ -73,7 +73,7 @@ class HeatingSensor(SensorEntity):
                               devices[candidates[0][0]]["name"] if candidates else "no_suitable_generator")
             result = {"heat_demand": demand, "recommended_source": recommendation}
         result["electricity_price"] = price
-        self._attr_native_value = result[self._key]
+        self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
             "thermal_model": "configured_not_calibrated" if d.get("h") else "learning_pending",

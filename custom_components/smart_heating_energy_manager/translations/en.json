@@ -56,7 +56,11 @@
           "energy_is_useful_heat": "Fuel counter measures useful heat",
           "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
           "active_states": "Actual heating states (comma separated)",
-          "inactive_states": "Non-heating states (comma separated)"
+          "inactive_states": "Non-heating states (comma separated)",
+          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
+          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
+          "level_entity": "Power level entity",
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
         }
       },
       "edit_details": {
@@ -78,7 +82,11 @@
           "energy_is_useful_heat": "Fuel counter measures useful heat",
           "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
           "active_states": "Actual heating states (comma separated)",
-          "inactive_states": "Non-heating states (comma separated)"
+          "inactive_states": "Non-heating states (comma separated)",
+          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
+          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
+          "level_entity": "Power level entity",
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
         }
       },
       "edit_generator": {

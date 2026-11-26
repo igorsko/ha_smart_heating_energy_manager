@@ -5,11 +5,44 @@ class SmartHeatingPanel extends HTMLElement {
   set hass(value) { this._hass=value; if (!this._editing) this.render(); }
   set panel(value) { this._panel=value; if (!this._editing) this.render(); }
   connectedCallback() { this.render(); }
-  async openZone(entry,area) {
+  openZone(entry,area) {
     this._editing={entry,area};
     this._notice="";
     this.render();
+  }
+  async saveZone(form) {
+    const editing=this._editing;
+    if (!editing) return;
+    const temperature=form.querySelector("[name=temperature]").value||null;
+    const sources=Array.from(form.querySelectorAll("[name=sources]:checked"),x=>x.value);
+    form.querySelectorAll("button").forEach(b=>b.disabled=true);
     try {
+      this._zones[editing.entry]=await this._hass.callWS({type:"smart_heating_energy_manager/save_zone",entry_id:editing.entry,area_id:editing.area,temperature,sources});
+      this._editing=null;
+      this._notice=(this._hass.language||"en").startsWith("it")?"Configurazione salvata":"Configuration saved";
+      this.render();
+    } catch(err) {
+      form.querySelectorAll("button").forEach(b=>b.disabled=false);
+      form.querySelector(".error").textContent=err.message||String(err);
+    }
+  }
+  render() {
+    if (!this._hass || !this._panel) return;
+    const it=(this._hass.language||"en").startsWith("it");
+    const tr=(a,b)=>it?a:b;
+    const state=id=>this._hass.states[id];
+    const val=id=>{const s=state(id);return !s||["unknown","unavailable"].includes(s.state)?"—":s.state+(s.attributes.unit_of_measurement?" "+s.attributes.unit_of_measurement:"");};
+    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["settings",tr("Impostazioni","Settings")]];
+    const card=(title,value)=>'<article><small>'+html(title)+'</small><strong>'+html(value)+'</strong></article>';
+    const installations=this._panel.config?.installations||[];
+    const sections=installations.map(e=>{
+      const ids=e.entities||{}, diag=state(ids.calibration)?.attributes||{}, fit=diag.fit||{};
+      const ranked=state(ids.recommended_source)?.attributes?.candidates||[];
+      const costs=new Map(ranked.map(x=>[x.id,x.cost]));
+      const rows=(e.generators||[]).map(g=>'<tr><td>'+html(g.name)+'</td><td>'+html(val(g.state_entity))+'</td><td>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</td></tr>').join("");
+      const overview='<div class="grid">'+card(tr("Temperatura interna","Indoor temperature"),val(e.indoor))+card(tr("Temperatura esterna","Outdoor temperature"),val(e.outdoor))+card(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand))+card(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source))+card(tr("Prezzo elettricità","Electricity price"),val(ids.electricity_price))+'</div>';
+      const generators='<article><h2>'+tr("Confronto generatori","Generator comparison")+'</h2>'+(rows?'<table><thead><tr><th>'+tr("Generatore","Generator")+'</th><th>'+tr("Stato","State")+'</th><th>'+tr("Costo termico","Heat cost")+'</th></tr></thead><tbody>'+rows+'</tbody></table>':html(tr("Nessun generatore configurato","No generators configured")))+'</article>';
+      const learning='<article><h2>'+tr("Modello termico","Thermal model")+'</h2><div class="grid">'+card(tr("Dispersioni","Heat loss"),fit.loss_w_k!=null?Number(fit.loss_w_k).toFixed(1)+" W/K":"—")+card(tr("Inerzia","Thermal capacity"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":"—")+card("COP",fit.cop!=null?Number(fit.cop).toFixed(2):"—")+card(tr("Campioni validi","Valid samples"),fit.samples??"—")+card(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+'</div></article>';
       const allZones=Object.entries(this._zones[e.id]||e.zones||{});
       const admin=this._hass.user?.is_admin;
       const names=ids=>ids.map(id=>html(state(id)?.attributes?.friendly_name||id)).join(", ");

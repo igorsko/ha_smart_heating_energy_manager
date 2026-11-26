@@ -97,6 +97,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("fuel_quantity", 1.0): positive,
             required("fuel_energy_kwh", 1.0): positive,
             required("enabled", True): bool,
+            required("energy_is_useful_heat", False): bool,
             optional("control_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"])),
             optional("state_entity"): selector.EntitySelector(),
             optional("energy_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="energy")),
@@ -115,6 +116,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("outdoor",default=current["outdoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Required("h",default=current["h"]): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
+            vol.Required("history_enabled",default=current.get("history_enabled",False)): bool,
+            vol.Required("history_days",default=current.get("history_days",7)): vol.All(vol.Coerce(int),vol.Range(min=1,max=30)),
+            vol.Required("history_interval_minutes",default=current.get("history_interval_minutes",60)): vol.All(vol.Coerce(int),vol.Range(min=15,max=360)),
+            vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),
         })
         return self.async_show_form(step_id="building",data_schema=schema)
 

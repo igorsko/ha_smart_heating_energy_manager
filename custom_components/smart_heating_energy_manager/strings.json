@@ -60,7 +60,9 @@
           "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
           "fuel_mass_entity": "Cumulative consumed fuel mass counter",
           "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
         }
       },
       "edit_details": {
@@ -86,7 +88,9 @@
           "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
           "fuel_mass_entity": "Cumulative consumed fuel mass counter",
           "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
         }
       },
       "edit_generator": {

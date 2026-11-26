@@ -60,7 +60,9 @@
           "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
           "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
           "level_entity": "Entità livello di potenza",
-          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)"
+          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
+          "fuel_mass_estimated": "Il contatore di massa è una stima",
+          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
         }
       },
       "edit_details": {
@@ -86,7 +88,9 @@
           "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
           "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
           "level_entity": "Entità livello di potenza",
-          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)"
+          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
+          "fuel_mass_estimated": "Il contatore di massa è una stima",
+          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
         }
       },
       "edit_generator": {

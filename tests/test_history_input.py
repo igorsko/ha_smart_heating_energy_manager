@@ -26,3 +26,10 @@ class HistoryTests(unittest.TestCase):
             [("heat_pump",self.series(0,1))],0,3600),[])
     def test_stale(self):
         self.assertIsNone(self.series(20).value_at(7201,7200))
+
+    def test_runtime_energy(self):
+        rate=h.RateSeries([h.Sample(0,3.456),h.Sample(1800,0),h.Sample(3600,0)])
+        self.assertAlmostEqual(rate.counter_delta(0,3600,7200),1.728)
+    def test_runtime_unknown(self):
+        rate=h.RateSeries([h.Sample(0,3.456),h.Sample(1800,None),h.Sample(3600,0)])
+        self.assertIsNone(rate.counter_delta(0,3600,7200))

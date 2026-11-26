@@ -22,6 +22,11 @@ async def _update_ui(hass, entry, loaded):
             _LOGGER.exception("Unable to register Smart Heating panel; sensors remain operational")
 
 async def async_setup_entry(hass, entry):
+    state = hass.data.setdefault(DOMAIN+"_ui", {})
+    if not state.get("zone_api_registered"):
+        from .zone_api import register
+        register(hass)
+        state["zone_api_registered"] = True
     await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
     entry.async_on_unload(entry.add_update_listener(_reload))
     await _update_ui(hass, entry, True)

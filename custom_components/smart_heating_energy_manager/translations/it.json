@@ -56,7 +56,11 @@
           "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
           "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
           "active_states": "Stati di erogazione effettiva (separati da virgola)",
-          "inactive_states": "Stati senza erogazione (separati da virgola)"
+          "inactive_states": "Stati senza erogazione (separati da virgola)",
+          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
+          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
+          "level_entity": "Entità livello di potenza",
+          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)"
         }
       },
       "edit_details": {
@@ -78,7 +82,11 @@
           "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
           "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
           "active_states": "Stati di erogazione effettiva (separati da virgola)",
-          "inactive_states": "Stati senza erogazione (separati da virgola)"
+          "inactive_states": "Stati senza erogazione (separati da virgola)",
+          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
+          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
+          "level_entity": "Entità livello di potenza",
+          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)"
         }
       },
       "edit_generator": {

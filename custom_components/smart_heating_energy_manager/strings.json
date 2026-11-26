@@ -53,7 +53,10 @@
           "energy_entity": "Energy meter",
           "power_entity": "Power sensor",
           "temperature_entity": "Temperature sensor",
-          "energy_is_useful_heat": "Fuel counter measures useful heat"
+          "energy_is_useful_heat": "Fuel counter measures useful heat",
+          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
+          "active_states": "Actual heating states (comma separated)",
+          "inactive_states": "Non-heating states (comma separated)"
         }
       },
       "edit_details": {
@@ -72,7 +75,10 @@
           "energy_entity": "Energy meter",
           "power_entity": "Power sensor",
           "temperature_entity": "Temperature sensor",
-          "energy_is_useful_heat": "Fuel counter measures useful heat"
+          "energy_is_useful_heat": "Fuel counter measures useful heat",
+          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
+          "active_states": "Actual heating states (comma separated)",
+          "inactive_states": "Non-heating states (comma separated)"
         }
       },
       "edit_generator": {
@@ -94,7 +100,8 @@
           "history_enabled": "Enable experimental historical calibration",
           "history_days": "History days",
           "history_interval_minutes": "Analysis interval (minutes)",
-          "history_max_age_hours": "Maximum sample age (hours)"
+          "history_max_age_hours": "Maximum sample age (hours)",
+          "history_min_coverage": "Minimum history coverage (fraction)"
         }
       }
     },

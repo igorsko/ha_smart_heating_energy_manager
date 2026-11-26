@@ -50,7 +50,7 @@ async def async_calibrate(hass, config):
     devices=list(config.get("generators",{}).items())
     if not devices:
         return {"status":"no_generators"}
-    ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity") if g.get(k)]))
+    ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -78,7 +78,7 @@ async def async_calibrate(hass, config):
                     for s in states.get(entity,[]):
                         value=mass_to_units(finite(s.state),s.attributes.get("unit_of_measurement"),g.get("fuel_mass_unit","kg"))
                         samples.append(Sample(s.last_updated.timestamp(),None if value is None else value*factor))
-                    choices.insert(0,("fuel_mass",entity,Series(samples)))
+                    choices.insert(0,("fuel_mass_estimated" if g.get("fuel_mass_estimated",False) else "fuel_mass",entity,Series(samples)))
             entity=g.get("state_entity")
             if entity:
                 level=g.get("level_entity")
@@ -88,9 +88,17 @@ async def async_calibrate(hass, config):
                 if g["kind"]=="fuel" and level and rates and active and inactive and not active & inactive and level != entity:
                     raw=lambda e:[Sample(s.last_updated.timestamp(),s.state) for s in states.get(e,[])]
                     choices.append(("level_runtime",entity,fuel_rate_series(raw(entity),raw(level),rates,active,inactive,g["fuel_energy_kwh"]*g["efficiency"],age)))
+                rate_entity=g.get("fuel_rate_entity")
+                if g["kind"]=="fuel" and rate_entity and rate_entity != entity and active and inactive and not active & inactive:
+                    from .fuel import recorded_rate_series
+                    choices.append(("recorded_fuel_rate",entity,recorded_rate_series(
+                        states.get(entity,[]),states.get(rate_entity,[]),active,inactive,
+                        g.get("fuel_mass_unit","kg"),g["fuel_energy_kwh"]*g["efficiency"],age)))
                 manual=_runtime(states.get(entity,[]),g)
                 if manual and not g.get('level_rates','').strip():
                     choices.append(("manual_runtime",entity,manual))
+            priority={"fuel_mass":0,"energy_entity":1,"power_entity":2,"fuel_mass_estimated":3,"recorded_fuel_rate":4,"level_runtime":5,"manual_runtime":6}
+            choices.sort(key=lambda item:priority[item[0]])
             report={}
             selected=None
             for method,entity,series in choices:

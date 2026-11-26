@@ -34,7 +34,9 @@
           "edit_generator": "Edit generator",
           "remove_generator": "Remove generator",
           "building": "Building and sensors",
-          "finish": "Save"
+          "finish": "Save",
+          "discover_winnet": "Import WiNET device",
+          "tariff": "Electricity tariff"
         }
       },
       "add_generator": {
@@ -60,7 +62,9 @@
           "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
           "fuel_mass_entity": "Cumulative consumed fuel mass counter",
           "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
         }
       },
       "edit_details": {
@@ -86,7 +90,9 @@
           "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
           "fuel_mass_entity": "Cumulative consumed fuel mass counter",
           "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)"
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
         }
       },
       "edit_generator": {
@@ -111,10 +117,57 @@
           "history_max_age_hours": "Maximum sample age (hours)",
           "history_min_coverage": "Minimum history coverage (fraction)"
         }
+      },
+      "discover_winnet": {
+        "title": "Select WiNET stove",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "confirm_discovery": {
+        "title": "Verify mappings and parameters",
+        "data": {
+          "name": "Name",
+          "kind": "Type",
+          "efficiency": "COP or efficiency fraction",
+          "capacity_kw": "Thermal capacity (kW)",
+          "fuel_price": "Fuel price",
+          "fuel_quantity": "Purchased quantity",
+          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
+          "enabled": "Enabled",
+          "control_entity": "Control entity (mapping only)",
+          "state_entity": "State entity",
+          "energy_entity": "Energy meter",
+          "power_entity": "Power sensor",
+          "temperature_entity": "Temperature sensor",
+          "energy_is_useful_heat": "Fuel counter measures useful heat",
+          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
+          "active_states": "Actual heating states (comma separated)",
+          "inactive_states": "Non-heating states (comma separated)",
+          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
+          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
+          "level_entity": "Power level entity",
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
+        }
+      },
+      "tariff": {
+        "data": {
+          "pun": "Price index sensor",
+          "use_index": "Use price index",
+          "fixed": "Fixed all-inclusive price",
+          "spread": "Supplier spread",
+          "losses": "Grid loss fraction",
+          "variable": "Variable charges",
+          "tax": "Excise",
+          "vat": "VAT fraction"
+        }
       }
     },
     "error": {
-      "invalid_generator": "Invalid generator parameters"
+      "invalid_generator": "Invalid generator parameters",
+      "no_discovered_entities": "No compatible entities"
     }
   }
 }

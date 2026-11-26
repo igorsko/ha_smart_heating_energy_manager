@@ -41,7 +41,34 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", {}))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "add_generator", "edit_generator", "remove_generator", "building", "finish"])
+            "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "finish"])
+
+    async def async_step_discover_winnet(self, user_input=None):
+        from homeassistant.helpers import entity_registry as er
+        from .discovery import suggest
+        if user_input is not None:
+            mapping = suggest(er.async_get(self.hass).entities.values(), user_input["device"])
+            if mapping:
+                self._discovered_defaults = {"kind":"fuel","fuel_mass_estimated":True,"fuel_mass_unit":"kg",**mapping}
+                return await self.async_step_confirm_discovery()
+        return self.async_show_form(step_id="discover_winnet",data_schema=vol.Schema({
+            vol.Required("device"): selector.DeviceSelector(selector.DeviceSelectorConfig(integration="winnet_stove"))
+        }),errors={"base":"no_discovered_entities"} if user_input is not None else {})
+
+    async def async_step_confirm_discovery(self,user_input=None):
+        return await self._generator_form("confirm_discovery",user_input,str(uuid4()),self._discovered_defaults)
+
+    async def async_step_tariff(self,user_input=None):
+        if user_input is not None:
+            self.options.update(user_input)
+            self.options["pun"] = user_input.get("pun","")
+            return self._save()
+        current = {**self.config_entry.data, **self.options}
+        fields = {"fixed":.30,"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
+        schema = {vol.Required(k,default=current.get(k,v)):vol.All(vol.Coerce(float),vol.Range(min=0,max=1 if k in ("vat","losses") else 10)) for k,v in fields.items()}
+        schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
+        schema[vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+        return self.async_show_form(step_id="tariff",data_schema=vol.Schema(schema))
 
     async def async_step_add_generator(self, user_input=None):
         return await self._generator_form("add_generator", user_input, str(uuid4()), {})
@@ -105,6 +132,8 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("manual_input_rate", 0.0): vol.All(vol.Coerce(float),vol.Range(min=0,max=10000)),
             required("fuel_mass_unit", "kg"): vol.In(["g","kg","t","lb"]),
             required("level_rates", ""): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
+            required("fuel_mass_estimated", False): bool,
+            optional("fuel_rate_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("fuel_mass_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("level_entity"): selector.EntitySelector(),
             required("active_states", ""): str,

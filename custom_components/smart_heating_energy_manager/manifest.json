@@ -1,7 +1,7 @@
 {
   "domain": "smart_heating_energy_manager",
   "name": "Smart Heating Energy Manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "config_flow": true,
   "documentation": "https://github.com/igorsko/ha_smart_heating_energy_manager",
   "issue_tracker": "https://github.com/igorsko/ha_smart_heating_energy_manager/issues",
@@ -11,6 +11,9 @@
   "iot_class": "local_polling",
   "requirements": [],
   "after_dependencies": [
-    "recorder"
+    "recorder",
+    "frontend",
+    "panel_custom",
+    "http"
   ]
 }

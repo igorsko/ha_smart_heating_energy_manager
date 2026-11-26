@@ -36,7 +36,8 @@
           "building": "Abitazione e sensori",
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
-          "tariff": "Tariffa elettrica"
+          "tariff": "Tariffa elettrica",
+          "display": "Interfaccia"
         }
       },
       "add_generator": {
@@ -162,6 +163,12 @@
           "variable": "Componenti variabili",
           "tax": "Accise",
           "vat": "Frazione IVA"
+        }
+      },
+      "display": {
+        "title": "Interfaccia",
+        "data": {
+          "show_panel": "Mostra Smart Heating nel menu laterale"
         }
       }
     },

@@ -41,7 +41,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", {}))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "finish"])
+            "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "display", "finish"])
 
     async def async_step_discover_winnet(self, user_input=None):
         from homeassistant.helpers import entity_registry as er
@@ -163,6 +163,14 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),
         })
         return self.async_show_form(step_id="building",data_schema=schema)
+
+    async def async_step_display(self, user_input=None):
+        if user_input is not None:
+            self.options.update(user_input)
+            return self._save()
+        return self.async_show_form(step_id="display",data_schema=vol.Schema({
+            vol.Required("show_panel",default=self.options.get("show_panel",True)):bool
+        }))
 
     async def async_step_finish(self, user_input=None):
         return self._save()

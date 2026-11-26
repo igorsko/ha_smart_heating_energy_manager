@@ -3,12 +3,7 @@
     "step": {
       "user": {
         "title": "Gestione intelligente del riscaldamento",
-        "description": "Puoi completare l’installazione anche senza conoscere i parametri tecnici. Seleziona i sensori e il prezzo solo se disponibili; potrai aggiungerli in seguito.",
-        "data": {
-          "indoor": "Termometro interno (facoltativo)",
-          "outdoor": "Termometro esterno (facoltativo)",
-          "fixed": "Prezzo elettricità tutto incluso (€/kWh, facoltativo)"
-        }
+        "description": "Installa Smart Heating. Le aree di Home Assistant saranno rilevate automaticamente; configura le associazioni dalla dashboard e dalle opzioni."
       }
     }
   },
@@ -24,7 +19,8 @@
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
           "tariff": "Tariffa elettrica",
-          "display": "Interfaccia"
+          "display": "Interfaccia",
+          "zones": "Zone termiche"
         }
       },
       "add_generator": {
@@ -157,11 +153,26 @@
         "data": {
           "show_panel": "Mostra Smart Heating nel menu laterale"
         }
+      },
+      "zones": {
+        "title": "Seleziona area",
+        "data": {
+          "area": "Area Home Assistant"
+        }
+      },
+      "zone_details": {
+        "title": "Configura zona",
+        "description": "Associa termometro e fonti di riscaldamento a {area}.",
+        "data": {
+          "temperature": "Termometro",
+          "sources": "Fonti di riscaldamento"
+        }
       }
     },
     "error": {
       "invalid_generator": "Parametri del generatore non validi",
-      "no_discovered_entities": "Nessuna entità compatibile"
+      "no_discovered_entities": "Nessuna entità compatibile",
+      "no_areas": "Nessuna area configurata in Home Assistant"
     }
   }
 }

@@ -3,24 +3,11 @@
     "step": {
       "user": {
         "title": "Gestione intelligente del riscaldamento",
-        "description": "Modalità consultiva. Prezzi in €/kWh; perdite, IVA e rendimento come frazioni. Attiva l'indice solo se coerente con il contratto.",
+        "description": "Puoi completare l’installazione anche senza conoscere i parametri tecnici. Seleziona i sensori e il prezzo solo se disponibili; potrai aggiungerli in seguito.",
         "data": {
-          "indoor": "Temperatura interna",
-          "outdoor": "Temperatura esterna",
-          "pun": "Sensore PUN o indice",
-          "use_index": "Utilizza indice",
-          "fixed": "Prezzo fisso tutto incluso",
-          "spread": "Spread fornitore",
-          "losses": "Frazione perdite di rete",
-          "variable": "Componenti variabili",
-          "tax": "Accise",
-          "vat": "Frazione IVA",
-          "h": "Dispersioni (W/K)",
-          "cop": "COP stimato",
-          "pellet_price": "Prezzo sacco pellet",
-          "pellet_mass": "Peso sacco (kg)",
-          "lhv": "Energia pellet (kWh/kg)",
-          "efficiency": "Rendimento stufa"
+          "indoor": "Termometro interno (facoltativo)",
+          "outdoor": "Termometro esterno (facoltativo)",
+          "fixed": "Prezzo elettricità tutto incluso (€/kWh, facoltativo)"
         }
       }
     }

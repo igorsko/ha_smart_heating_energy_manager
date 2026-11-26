@@ -26,6 +26,8 @@ async def async_update_ui(hass):
         await hass.http.async_register_static_paths([StaticPathConfig(
             JS, str(Path(__file__).parent / "frontend" / "panel.js"), cache_headers=False)])
         state["static"] = True
+    from .areas import discover_areas, zone_view
+    areas = discover_areas(hass)
     registry = er.async_get(hass)
     config = []
     for entry in entries:
@@ -39,9 +41,9 @@ async def async_update_ui(hass):
                        "generators": [{"id":k,"name":g["name"],"kind":g["kind"],
                            "state_entity":g.get("state_entity"),"temperature_entity":g.get("temperature_entity")}
                            for k,g in data.get("generators",{}).items()],
-                       "zones":data.get("zones",{})})
+                       "zones":zone_view(areas,data.get("zones",{}))})
     await panel_custom.async_register_panel(hass, frontend_url_path=PATH,
-        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.1",
+        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.2",
         sidebar_title="Smart Heating",sidebar_icon="mdi:home-thermometer",
         config={"installations":config},require_admin=False)
     state["owned"] = True

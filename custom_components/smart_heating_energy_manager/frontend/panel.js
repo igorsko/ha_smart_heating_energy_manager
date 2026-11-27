@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 const html = (value) => String(value ?? "—").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Select the newest backend snapshot, not the first registered sensor.
+const latestAdvisory=(states,ids)=>[ids.electricity_price,ids.indoor_average,ids.recommended_source,ids.heat_demand,ids.outdoor_temperature].map(id=>states[id]).filter(s=>s?.attributes?.generator_inventory).sort((a,b)=>(Date.parse(b.attributes.snapshot_at||b.last_updated)||0)-(Date.parse(a.attributes.snapshot_at||a.last_updated)||0))[0]?.attributes||{};
+const privateEntity=id=>/(?:^|_)(?:ip_address|mac_address|serial_number|ssid|password|token|api_key|secret|credential)(?:_|$)/i.test(id);
 class SmartHeatingPanel extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; this._history={}; this._historyPending=new Set(); this._calibrationPending=new Set(); this._calibrationResults={}; }
   set hass(value) { this._hass=value; if (!this._editing) this.render(); }
@@ -70,19 +73,19 @@ class SmartHeatingPanel extends HTMLElement {
   }
   diagnosticReport(entry) {
     const states=this._hass.states, ids=entry.entities||{};
-    const a=states[ids.electricity_price]?.attributes||states[ids.indoor_average]?.attributes||states[ids.recommended_source]?.attributes||{};
+    const a=latestAdvisory(states,ids);
     const pick=(obj,keys)=>Object.fromEntries(keys.filter(k=>obj?.[k]!==undefined).map(k=>[k,obj[k]]));
     const allowed=["unit_of_measurement","device_class","state_class","hvac_action","hvac_modes","current_temperature","temperature","state_code","state_english"];
     const generators=(entry.generators||[]).map(g=>{
       const inv=a.generator_inventory?.[g.id]||{}, hp=a.heat_pump_live?.[g.id]||{}, fuel=a.fuel_live?.[g.id]||{};
-      const entities=[...new Set([g.control_entity,g.state_entity,inv.energy_entity,inv.power_entity,inv.state_entity,hp.power_entity,fuel.operating_entity,fuel.rate_entity,...(inv.energy_alternatives||[]),...(inv.entities||[]).map(x=>x.entity)].filter(Boolean))];
-      return {name:g.name,kind:g.kind,mappings:pick(inv,["energy_entity","power_entity","state_entity","energy_alternatives"]),heat_pump:pick(hp,["mode","operating_status","operating_evidence","hvac_action","state_entity","state_value","power_w","power_source","power_entity","interval_minutes","cop","cop_source","heat_kw","cost_per_hour"]),fuel:pick(fuel,["operating_entity","operating_status","operating_raw","state_code","burning_state","rate_entity","rate_kg_h","cost_per_hour","heat_kw"]),entities:entities.map(id=>{
+      const entities=[...new Set([g.control_entity,g.state_entity,inv.energy_entity,inv.power_entity,inv.state_entity,hp.power_entity,fuel.operating_entity,fuel.rate_entity,...(inv.energy_alternatives||[]),...(inv.entities||[]).map(x=>x.entity)].filter(id=>id&&!privateEntity(id)))];
+      return {name:g.name,kind:g.kind,mappings:pick(inv,["energy_entity","power_entity","state_entity","energy_alternatives"]),heat_pump:pick(hp,["mode","operating_status","operating_evidence","hvac_action","state_entity","state_value","power_w","power_source","power_entity","interval_minutes","end_timestamp","cop","cop_source","heat_kw","cost_per_hour"]),fuel:pick(fuel,["operating_entity","operating_status","operating_raw","state_code","burning_state","rate_entity","rate_kg_h","cost_per_hour","heat_kw"]),entities:entities.map(id=>{
         const s=states[id], row=(inv.entities||[]).find(x=>x.entity===id);
         return {entity_id:id,state:s?.state??row?.state??null,disabled:row?.disabled??false,last_updated:s?.last_updated??null,attributes:pick(s?.attributes,allowed)};
       })};
     });
     const cal=states[ids.calibration];
-    return {schema_version:1,integration_version:"0.3.22",exported_at:new Date().toISOString(),generators,model:pick(a,["thermal_model","loss_w_k","effective_capacity_kwh_k","capacity_origin","learned_cop","model_readiness"]),calibration:{status:cal?.state??null,...pick(cal?.attributes,["quality","fit","validation","intervals","calculated_at"])}};
+    return {schema_version:1,integration_version:"0.3.23",snapshot_at:a.snapshot_at??null,exported_at:new Date().toISOString(),generators,model:pick(a,["indoor_sensor_count","indoor_sensor_total","outdoor_sensor","diagnostic","thermal_model","loss_w_k","effective_capacity_kwh_k","capacity_origin","learned_cop","model_readiness"]),calibration:{status:cal?.state??null,...pick(cal?.attributes,["quality","fit","validation","intervals","calculated_at","generators","indoor_reference","outdoor_reference"])}};
   }
   async exportDiagnostics(entryId, copy) {
     const entry=(this._panel.config?.installations||[]).find(e=>e.id===entryId);
@@ -179,7 +182,7 @@ class SmartHeatingPanel extends HTMLElement {
     const installations=this._panel.config?.installations||[];
     const sections=installations.map(e=>{
       const ids=e.entities||{}, diag=state(ids.calibration)?.attributes||{}, fit=diag.fit||diag.last_valid?.fit||{};
-      const advisory=state(ids.electricity_price)?.attributes||state(ids.indoor_average)?.attributes||state(ids.recommended_source)?.attributes||{};
+      const advisory=latestAdvisory(this._hass.states,ids);
       const ranked=advisory.economic_comparison||advisory.candidates||[];
       const origins=new Map(ranked.map(x=>[x.id,x.source]));
       if(["overview","history","tariffs"].includes(this._page)) this.loadHistory(e,ids);

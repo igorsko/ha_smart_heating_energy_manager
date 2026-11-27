@@ -47,6 +47,20 @@ class EnergyForecast(SensorEntity):
                "battery_soc":soc if soc is not None and 0<=soc<=100 else None,
                "plan":[],"forecast":[],"mode":"advisory","price_assumption":"current_price_constant",
                "solar_assumption":"future_surplus_unknown","model":"steady_state"}
+        from .energy_import import async_snapshot
+        try:
+            imported=await async_snapshot(self.hass)
+        except Exception:
+            _LOGGER.exception("Energy dashboard import unavailable")
+            imported={}
+        attrs["energy_dashboard_sources"]=imported.get("energy_dashboard_sources",{})
+        attrs["energy_origins"]={}
+        for field,manual in (("pv_kw","pv_power"),("export_kw","grid_export"),("battery_soc","battery_soc")):
+            if not d.get(manual):
+                attrs[field]=imported.get(field)
+            attrs["energy_origins"][field]="manual" if d.get(manual) else "energy_dashboard" if attrs[field] is not None else "unavailable"
+        attrs["grid_net_kw"]=imported.get("grid_net_kw")
+        attrs["battery_net_kw"]=imported.get("battery_net_kw")
         status="configure_weather"
         weather=d.get("weather")
         if weather:

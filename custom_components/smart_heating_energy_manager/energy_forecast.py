@@ -65,6 +65,7 @@ class EnergyForecast(SensorEntity):
         attrs["grid_net_kw"]=imported.get("grid_net_kw")
         attrs["battery_net_kw"]=imported.get("battery_net_kw")
         attrs["home_kw"]=imported.get("home_kw")
+        attrs["battery_capacity_kwh"]=imported.get("battery_capacity_kwh")
         from .dhw import snapshot, solar_window
         dhw=snapshot(d.get("dhw",{}),self.hass.states.get)
         if dhw:
@@ -96,6 +97,7 @@ class EnergyForecast(SensorEntity):
             solar={}
         now=dt_util.utcnow()
         attrs["solar_forecast"]=[{"datetime":t,"pv_kwh":v} for t,v in solar.items() if now<=dt_util.parse_datetime(t)<now+timedelta(hours=24)]
+        price=None
         status="configure_weather"
         weather=d.get("weather")
         if weather:
@@ -144,7 +146,8 @@ class EnergyForecast(SensorEntity):
                         # Gross production is not free surplus; report potential overlap only.
                         chosen=next((g for g in gs if g.identifier==row["generator"]),None)
                         electric=row["heat_kw"]/chosen.efficiency if chosen and chosen.kind!="fuel" else None
-                        row["electricity_kwh"]=round(electric,3) if electric is not None else None
+                        row["electricity_kwh"]=round(electric,3) if electric is not None else 0 if chosen or row["heat_kw"]==0 else None
+                        row["fuel_cost"]=row["cost_per_hour"] if chosen and chosen.kind=="fuel" else 0 if chosen or row["heat_kw"]==0 else None
                         row["potential_solar_overlap_kwh"]=round(min(electric,pv),3) if electric is not None and pv is not None else None
                         row["generator_name"]=devices.get(row["generator"],{}).get("name")
                         attrs["plan"].append(row)
@@ -152,6 +155,18 @@ class EnergyForecast(SensorEntity):
             except Exception:
                 _LOGGER.exception("Hourly weather forecast unavailable")
                 status="forecast_unavailable"
+        settings=d.get("joint_plan",{})
+        if settings.get("enabled"):
+            from .joint_plan import optimize
+            battery={}
+            if settings.get("use_battery"):
+                battery={**settings,"soc":self._live_attrs.get("battery_soc")}
+                if battery.get("capacity") is None:
+                    battery["capacity"]=self._live_attrs.get("battery_capacity_kwh")
+            elif self._live_attrs.get("energy_dashboard_sources",{}).get("battery"):
+                attrs["joint_plan"]={"status":"battery_not_modeled"}
+            if "joint_plan" not in attrs:
+                attrs["joint_plan"]=optimize(attrs["plan"],attrs["solar_forecast"],settings.get("base_kw"),price,self._live_attrs.get("dhw"),battery,now,settings.get("export_price"))
         self._attr_native_value=status
         self._forecast_attrs=attrs
         self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}

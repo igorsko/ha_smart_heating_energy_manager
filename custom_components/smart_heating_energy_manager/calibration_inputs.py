@@ -39,6 +39,10 @@ def calibration_inputs(devices, entries, read):
         if stove:
             siblings=stove
             mapping=suggest(entries,stove[0].device_id)
+            # WiNET status sensor is separate from binary burning evidence.
+            statuses=[e.entity_id for e in stove if e.entity_id.startswith("sensor.") and str(getattr(e,"unique_id","")).endswith("_state")]
+            if len(statuses)==1:
+                g["_operating_entity"]=statuses[0]
             mass=unique(("_estimated_pellet_consumed","_pellet_pellet_used"),("kg",),("total","total_increasing"))
             if not g.get("fuel_mass_entity") and mass:
                 g.update(fuel_mass_entity=mass,fuel_mass_unit="kg",fuel_mass_estimated=True)

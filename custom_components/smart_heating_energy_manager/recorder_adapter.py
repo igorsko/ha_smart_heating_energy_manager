@@ -52,12 +52,15 @@ async def async_calibrate(hass, config):
     outdoor_id=config.get("outdoor_reference") or config.get("outdoor")
     if not indoor_ids or not outdoor_id:
         return {"status":"configure_temperature_sensors"}
-    devices=list(config.get("generators",{}).items())
+    from homeassistant.helpers import entity_registry as er
+    from .calibration_inputs import calibration_inputs
+    resolved,input_report=calibration_inputs(config.get("generators",{}),er.async_get(hass).entities.values(),hass.states.get)
+    devices=list(resolved.items())
     if not devices:
         return {"status":"no_generators"}
-    pending=[key for key,g in devices if not ready(g)]
+    pending=[key for key,g in devices if not input_report[key]["usable"]]
     if pending:
-        return {"status":"configure_generator_parameters","pending_generators":pending}
+        return {"status":"configure_generator_parameters","pending_generators":pending,"inputs":input_report}
     temp_ids=set(indoor_ids+[outdoor_id])
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
     end=dt_util.utcnow()
@@ -120,7 +123,7 @@ async def async_calibrate(hass, config):
                 used.add(selected[1])
                 counters.append((g["kind"],selected[2]))
         if len(counters)!=len(devices):
-            return {"status":"configure_missing_energy_source","generators":diagnostics}
+            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         result=fit(intervals)
         if result is None:
@@ -128,6 +131,6 @@ async def async_calibrate(hass, config):
             cops={g["efficiency"] for g in hp if not g.get("cop_curve")}
             if hp and len(cops)==1 and all(not g.get("cop_curve") for g in hp):
                 result=fit(intervals,known_cop=next(iter(cops)))
-        return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,
+        return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,
                 "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)

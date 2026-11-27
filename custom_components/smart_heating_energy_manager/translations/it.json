@@ -115,7 +115,10 @@
           "history_days": "Giorni di storico",
           "history_interval_minutes": "Intervallo di analisi (minuti)",
           "history_max_age_hours": "Età massima campione (ore)",
-          "history_min_coverage": "Copertura minima storico (frazione)"
+          "history_min_coverage": "Copertura minima storico (frazione)",
+          "apply_learned": "Usa dispersione termica appresa",
+          "calibration_locked": "Blocca aggiornamento calibrazione",
+          "reset_calibration": "Invalida calibrazione precedente"
         }
       },
       "discover_winnet": {

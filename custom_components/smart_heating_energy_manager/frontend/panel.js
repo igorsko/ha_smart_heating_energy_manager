@@ -3,7 +3,7 @@ const html = (value) => String(value ?? "—").replace(/[&<>"']/g, c => ({"&":"&
 class SmartHeatingPanel extends HTMLElement {
   constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; }
   set hass(value) { this._hass=value; if (!this._editing) this.render(); }
-  set panel(value) { this._panel=value; if (!this._editing) this.render(); }
+  set panel(value) { if (this._panel !== value) this._zones={}; this._panel=value; if (!this._editing) this.render(); }
   connectedCallback() { this.render(); }
   openZone(entry,area) {
     this._editing={entry,area};
@@ -63,10 +63,12 @@ class SmartHeatingPanel extends HTMLElement {
       if(z){
         const states=Object.values(this._hass.states);
         const name=s=>s.attributes.friendly_name||s.entity_id;
-        const temps=states.filter(s=>s.entity_id.startsWith("sensor.")&&(s.attributes.device_class==="temperature"||["°C","°F"].includes(s.attributes.unit_of_measurement)));
+        const temps=states.filter(s=>s.entity_id.startsWith("sensor.")&&(s.attributes.device_class==="temperature"||["°C","°F"].includes(s.attributes.unit_of_measurement)||s.entity_id===z.temperature));
         const selected=z.confirmed?z.temperature:(z.temperature_candidates?.length===1?z.temperature_candidates[0]:null);
         const selectedSources=z.confirmed?(z.sources||[]):(z.source_candidates||[]);
         const available=states.filter(s=>["climate","switch","script"].includes(s.entity_id.split(".")[0]));
+        if(selected && !temps.some(s=>s.entity_id===selected)) temps.push({entity_id:selected,attributes:{friendly_name:selected}});
+        for(const id of selectedSources) if(!available.some(s=>s.entity_id===id)) available.push({entity_id:id,attributes:{friendly_name:id}});
         const order=(a,b)=>name(a).localeCompare(name(b));
         modal='<div class="overlay"><form class="dialog" role="dialog" aria-modal="true"><h2>'+html(z.name)+'</h2><label>'+tr("Termometro","Thermometer")+'<select name="temperature"><option value="">—</option>'+temps.sort(order).map(s=>'<option value="'+html(s.entity_id)+'" '+(selected===s.entity_id?"selected":"")+'>'+html(name(s))+'</option>').join("")+'</select></label><h3>'+tr("Fonti di riscaldamento","Heating sources")+'</h3><div class="choices">'+available.sort(order).map(s=>'<label><input type="checkbox" name="sources" value="'+html(s.entity_id)+'" '+(selectedSources.includes(s.entity_id)?"checked":"")+'>'+html(name(s))+'</label>').join("")+'</div><p class="error" role="alert"></p><footer><button type="button" data-close>'+tr("Annulla","Cancel")+'</button><button type="submit">'+tr("Salva","Save")+'</button></footer></form></div>';
       }

@@ -15,7 +15,7 @@
           "add_generator": "Aggiungi generatore",
           "edit_generator": "Modifica generatore",
           "remove_generator": "Rimuovi generatore",
-          "building": "Temperature di riferimento",
+          "building": "Temperatura esterna",
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
           "tariff": "Tariffa elettrica",
@@ -59,11 +59,11 @@
         }
       },
       "building": {
-        "title": "Temperature di riferimento",
+        "title": "Temperatura esterna",
         "data": {
-          "indoor": "Temperatura interna",
           "outdoor": "Temperatura esterna"
-        }
+        },
+        "description": "La temperatura interna è calcolata dalla media dei termometri delle zone. Seleziona un termometro esterno indipendente solo se non è già individuato nella zona esterna."
       },
       "discover_winnet": {
         "title": "Seleziona stufa WiNET",
@@ -161,9 +161,6 @@
       },
       "advanced_tariff": {
         "data": {
-          "pun": "Sensore PUN o indice",
-          "use_index": "Utilizza indice",
-          "fixed": "Prezzo fisso tutto incluso",
           "spread": "Spread fornitore",
           "losses": "Frazione perdite di rete",
           "variable": "Componenti variabili",
@@ -188,11 +185,11 @@
       },
       "energy_forecast": {
         "title": "Energia e previsioni",
-        "description": "Tutti i campi sono facoltativi. Seleziona le entità già disponibili in Home Assistant.",
+        "description": "Il pannello Energia e il registro dispositivi sono utilizzati automaticamente. I sensori FV, rete e batteria qui sotto sono alternative manuali facoltative.",
         "data": {
-          "pv_power": "Produzione fotovoltaica",
-          "grid_export": "Potenza immessa in rete (positiva in esportazione)",
-          "battery_soc": "Carica batteria (%)",
+          "pv_power": "Produzione fotovoltaica (alternativa manuale)",
+          "grid_export": "Potenza immessa in rete (positiva in esportazione) (alternativa manuale)",
+          "battery_soc": "Carica batteria (%) (alternativa manuale)",
           "weather": "Previsioni meteo orarie",
           "forecast_target": "Temperatura interna desiderata (°C)",
           "thermal_capacity": "Capacità termica manuale (kWh/K)",

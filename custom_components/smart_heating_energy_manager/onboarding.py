@@ -5,8 +5,10 @@ def merge_basic(old, user, name):
         raise ValueError("kind")
     data=dict(old)
     entity=user.get("control_entity") or old.get("control_entity")
-    if old.get("kind") and (old["kind"]!=kind or (entity and old.get("control_entity") and entity!=old["control_entity"])):
-        raise ValueError("Change device or type via a new generator")
+    changed=bool(old.get("kind") and (old["kind"]!=kind or (entity and old.get("control_entity") and entity!=old["control_entity"])))
+    if changed:
+        # Preserve the generator ID, but never transfer meters or technical ratings to another appliance.
+        data={"enabled":old.get("enabled",True),"technical_configured":False}
     data.update(name=name,kind=kind)
     if entity:
         data["control_entity"]=entity

@@ -5,7 +5,6 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 from .calibration import fit
-from .onboarding import ready
 from .history_input import Sample, Series, MeanSeries, RateSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
@@ -73,6 +72,9 @@ async def async_calibrate(hass, config):
             include_start_time_state=False,significant_changes_only=False,minimal_response=False,no_attributes=False)
         indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in indoor_ids])
         outdoor=_series(states.get(outdoor_id,[]),"temperature")
+        from .history_quality import temperature_coverage
+        quality={"temperature":{e:temperature_coverage(_series(states.get(e,[]),"temperature"),start.timestamp(),end.timestamp(),step,age) for e in indoor_ids+[outdoor_id]},
+                 "expected_intervals":int((end-start).total_seconds()//step)}
         counters,diagnostics,used=[],{},set()
         for key,g in devices:
             choices=[]
@@ -118,19 +120,21 @@ async def async_calibrate(hass, config):
                 report[method]=round(coverage,3)
                 if coverage>=threshold and entity not in used and entity not in temp_ids and selected is None:
                     selected=(method,entity,series)
-            diagnostics[key]={"coverage":report,"source":selected[0] if selected else None}
+            diagnostics[key]={"coverage":report,"source":selected[0] if selected else None,"entity":selected[1] if selected else None}
             if selected:
                 used.add(selected[1])
                 counters.append((g["kind"],selected[2]))
         if len(counters)!=len(devices):
-            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report}
+            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
+        quality["complete_intervals"]=len(intervals)
+        quality["complete_fraction"]=len(intervals)/quality["expected_intervals"] if quality["expected_intervals"] else 0
         result=fit(intervals)
         if result is None:
             hp=[g for _,g in devices if g["kind"]=="heat_pump"]
             cops={g["efficiency"] for g in hp if not g.get("cop_curve")}
             if hp and len(cops)==1 and all(not g.get("cop_curve") for g in hp):
                 result=fit(intervals,known_cop=next(iter(cops)))
-        return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,
+        return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
                 "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)

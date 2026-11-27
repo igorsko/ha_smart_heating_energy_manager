@@ -30,12 +30,49 @@ class EnergyForecast(SensorEntity):
         self._refreshing=False
         self._base_profile={}
         self._profile_date=None
+        self._validation_rows=[]
+        self._validation_store=None
+        self._validation_lock=None
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
+        import asyncio
+        from homeassistant.helpers.storage import Store
+        self._validation_lock=asyncio.Lock()
+        self._validation_store=Store(self.hass,1,f"{DOMAIN}.{self.entry_id}.forecasts")
+        saved=await self._validation_store.async_load()
+        self._validation_rows=saved if isinstance(saved,list) else []
+        self.async_on_remove(async_track_time_interval(self.hass,self._observe_forecasts,timedelta(minutes=2)))
         self.async_on_remove(async_track_time_interval(self.hass,self.refresh,timedelta(minutes=15)))
         self.async_on_remove(async_track_time_interval(self.hass,self.refresh_live,timedelta(seconds=30)))
         self._task=self.hass.async_create_task(self.refresh())
         self.async_on_remove(self._task.cancel)
+    def _validation_reference(self):
+        from .learned import fingerprint
+        ref=reference_config(self.config,zone_view(discover_areas(self.hass),self.config.get("zones",{}),self.config.get("outdoor")))
+        def read(entity):
+            s=self.hass.states.get(entity) if entity else None
+            if s is None or dt_util.utcnow()-s.last_updated>timedelta(minutes=30):
+                return None
+            v=number(s.state)
+            unit=s.attributes.get("unit_of_measurement")
+            return v if unit=="°C" else (v-32)*5/9 if unit=="°F" and v is not None else None
+        from .temperature_zones import average_temperature
+        ids=ref["indoor_reference"]
+        indoor,n=average_temperature(ids,read)
+        return fingerprint(ref),indoor if ids and n==len(ids) else None,read(ref["outdoor_reference"])
+
+    async def _observe_forecasts(self,now=None):
+        from .forecast_validation import observe,summarize
+        if not self._validation_store:
+            return
+        async with self._validation_lock:
+            reference,indoor,outdoor=self._validation_reference()
+            self._validation_rows=observe(self._validation_rows,dt_util.utcnow(),reference,indoor,outdoor)
+            await self._validation_store.async_save(self._validation_rows)
+            self._forecast_attrs["forecast_validation"]=summarize(self._validation_rows,reference)
+            self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}
+            self.async_write_ha_state()
+
     def read(self,key,power=False):
         entity=self.config.get(key)
         s=self.hass.states.get(entity) if entity else None
@@ -238,6 +275,16 @@ class EnergyForecast(SensorEntity):
                             base[stamp.astimezone(timezone.utc).isoformat()]=value
             if "joint_plan" not in attrs:
                 attrs["joint_plan"]=optimize(attrs["plan"],attrs["solar_forecast"],base,price,self._live_attrs.get("dhw"),battery,now,settings.get("export_price"))
+        from .forecast_validation import issue,observe,summarize
+        if self._validation_store:
+            async with self._validation_lock:
+                reference,indoor,outdoor=self._validation_reference()
+                issued=dt_util.utcnow()
+                self._validation_rows=observe(self._validation_rows,issued,reference,indoor,outdoor)
+                if d.get("history_enabled",False):
+                    issue(self._validation_rows,issued,reference,attrs["forecast"],attrs.get("thermal_prediction",{}),indoor)
+                await self._validation_store.async_save(self._validation_rows)
+                attrs["forecast_validation"]=summarize(self._validation_rows,reference)
         self._attr_native_value=status
         self._forecast_attrs=attrs
         self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}

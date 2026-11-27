@@ -74,8 +74,12 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_zone_thermal(self,user_input=None):
         from .areas import discover_areas
-        areas=discover_areas(self.hass)
+        from .areas import zone_view
+        current={**self.config_entry.data,**self.options}
+        areas={k:v for k,v in zone_view(discover_areas(self.hass),current.get("zones",{}),current.get("outdoor")).items() if not v.get("outdoor")}
         if user_input is not None:
+            if user_input["area"] not in areas:
+                return await self.async_step_zone_thermal()
             self._thermal_area=user_input["area"]
             return await self.async_step_zone_thermal_details()
         return self.async_show_form(step_id="zone_thermal",data_schema=vol.Schema({
@@ -131,15 +135,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_advanced_tariff(self,user_input=None):
         if user_input is not None:
             self.options.update(user_input)
-            self.options["fixed"] = user_input.get("fixed")
-            self.options["pun"] = user_input.get("pun","")
             return self._save()
         current = {**self.config_entry.data, **self.options}
         fields = {"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
         schema = {vol.Required(k,default=current.get(k,v)):vol.All(vol.Coerce(float),vol.Range(min=0,max=1 if k in ("vat","losses") else 10)) for k,v in fields.items()}
-        schema[vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {})]=vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
-        schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
-        schema[vol.Optional("pun",description={"suggested_value":self._price_suggestion(current)} if self._price_suggestion(current) else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         return self.async_show_form(step_id="advanced_tariff",data_schema=vol.Schema(schema))
 
     async def async_step_add_generator(self, user_input=None):
@@ -270,12 +269,12 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_building(self,user_input=None):
         if user_input is not None:
-            self.options.update({"indoor":user_input.get("indoor"),"outdoor":user_input.get("outdoor")})
+            self.options["outdoor"]=user_input.get("outdoor")
             return self._save()
         current={**self.config_entry.data,**self.options}
         return self.async_show_form(step_id="building",data_schema=vol.Schema({
             vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature"))
-            for k in ("indoor","outdoor")}))
+            for k in ("outdoor",)}))
 
     async def async_step_advanced_settings(self, user_input=None):
         if user_input is not None:

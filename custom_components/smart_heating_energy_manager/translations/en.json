@@ -15,7 +15,7 @@
           "add_generator": "Add generator",
           "edit_generator": "Edit generator",
           "remove_generator": "Remove generator",
-          "building": "Reference temperatures",
+          "building": "Outdoor temperature",
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
           "tariff": "Electricity tariff",
@@ -59,11 +59,11 @@
         }
       },
       "building": {
-        "title": "Reference temperatures",
+        "title": "Outdoor temperature",
         "data": {
-          "indoor": "Indoor temperature",
           "outdoor": "Outdoor temperature"
-        }
+        },
+        "description": "Indoor temperature is the average of zone thermometers. Select an independent outdoor thermometer only if it is not already identified in the outdoor zone."
       },
       "discover_winnet": {
         "title": "Select WiNET stove",
@@ -161,9 +161,6 @@
       },
       "advanced_tariff": {
         "data": {
-          "pun": "Price index sensor",
-          "use_index": "Use price index",
-          "fixed": "Fixed all-inclusive price",
           "spread": "Supplier spread",
           "losses": "Grid loss fraction",
           "variable": "Variable charges",
@@ -188,11 +185,11 @@
       },
       "energy_forecast": {
         "title": "Energy and forecast",
-        "description": "All fields are optional. Select existing Home Assistant entities.",
+        "description": "Energy dashboard and device registry are used automatically. The PV, grid and battery sensors below are optional manual fallbacks.",
         "data": {
-          "pv_power": "Solar generation",
-          "grid_export": "Grid export power (positive export)",
-          "battery_soc": "Battery charge (%)",
+          "pv_power": "Solar generation (manual fallback)",
+          "grid_export": "Grid export power (positive export) (manual fallback)",
+          "battery_soc": "Battery charge (%) (manual fallback)",
           "weather": "Hourly weather forecast",
           "forecast_target": "Desired indoor temperature (°C)",
           "thermal_capacity": "Manual thermal capacity (kWh/K)",

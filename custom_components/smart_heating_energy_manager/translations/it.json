@@ -105,19 +105,15 @@
       "advanced_details": {
         "title": "Parametri tecnici del generatore",
         "data": {
-          "name": "Nome",
-          "kind": "Tipologia",
           "efficiency": "COP o rendimento (frazione)",
           "capacity_kw": "Potenza termica (kW)",
           "fuel_price": "Prezzo del combustibile",
           "fuel_quantity": "Quantità acquistata",
           "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
           "enabled": "Abilitato",
-          "control_entity": "Entità di comando (solo associazione)",
           "state_entity": "Entità di stato",
           "energy_entity": "Contatore di energia",
           "power_entity": "Sensore di potenza",
-          "temperature_entity": "Sensore di temperatura",
           "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
           "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
           "active_states": "Stati di erogazione effettiva (separati da virgola)",
@@ -128,9 +124,10 @@
           "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
           "fuel_mass_estimated": "Il contatore di massa è una stima",
           "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)",
-          "cop_curve": "Curva COP (temperatura esterna °C=COP, una riga per punto)"
+          "cop_curve": "Curva COP (temperatura esterna °C=COP, una riga per punto)",
+          "confirm_parameters": "Confermo i parametri tecnici (potenza, rendimento e dati del combustibile, se applicabili)"
         },
-        "description": "Sono mostrati solo i parametri pertinenti alla tipologia selezionata. Per modificare il dispositivo usa il menu principale."
+        "description": "I campi già rilevati sono precompilati. Svuota un’associazione per tornare al riconoscimento automatico. Entità automatiche: {automatic_entities}. Contatori alternativi: {alternative_entities}."
       },
       "advanced_generator": {
         "data": {

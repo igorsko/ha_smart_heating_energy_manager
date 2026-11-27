@@ -9,7 +9,7 @@ from .onboarding import ready
 from .temperature_zones import resolve, average_temperature, reference_config
 from .areas import discover_areas, zone_view
 from .thermal_zones import parse_curve, cop_at, zone_status
-from .generators import Generator, rank_generators
+from .generators import Generator, rank_generators, capacity_status
 
 SCAN_INTERVAL = timedelta(seconds=60)
 SENSORS = {
@@ -110,7 +110,7 @@ class HeatingSensor(SensorEntity):
                     v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
             candidates = rank_generators(generators, price, demand)
             recommendation = ("unknown" if demand is None else "none" if demand == 0 else
-                              devices[candidates[0][0]]["name"] if candidates else "no_suitable_generator")
+                              devices[candidates[0][0]]["name"] if candidates else "generator_parameters_pending" if any(capacity_status(v,demand) in ("parameters_pending","capacity_unknown") for v in devices.values()) else "no_suitable_generator")
             result = {"heat_demand": demand, "recommended_source": recommendation}
         result["indoor_average"] = round(indoor,2) if indoor is not None else None
         result["outdoor_temperature"] = outdoor
@@ -133,6 +133,7 @@ class HeatingSensor(SensorEntity):
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
+            "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in d.get("generators",{}).items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "diagnostic": {"indoor": "ok" if indoor is not None else "missing_temperature", "outdoor": "ok" if outdoor is not None else "missing_temperature", "tariff": "ok" if price is not None else "configure_tariff", "loss": "ok" if finite(loss) is not None and finite(loss)>0 else "configure_model", "index_enabled": bool(d.get("use_index")), "index_available": raw_index is not None},
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}

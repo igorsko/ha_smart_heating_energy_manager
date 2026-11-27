@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 const html = (value) => String(value ?? "—").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 class SmartHeatingPanel extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; }
+  constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; this._history={}; this._historyPending=new Set(); }
   set hass(value) { this._hass=value; if (!this._editing) this.render(); }
   set panel(value) { if (this._panel !== value) this._zones={}; this._panel=value; if (!this._editing) this.render(); }
   connectedCallback() { this.render(); }
@@ -26,27 +26,99 @@ class SmartHeatingPanel extends HTMLElement {
       form.querySelector(".error").textContent=err.message||String(err);
     }
   }
+  async loadHistory(entry, ids) {
+    const key=entry.id;
+    const entities=[ids.indoor_average,ids.outdoor_temperature,ids.heat_demand,ids.electricity_price].filter(Boolean);
+    const signature=entities.join(",");
+    if(!signature || this._historyPending.has(key)) return;
+    const previous=this._history[key];
+    if(previous?.signature===signature && Date.now()-previous.at<300000) return;
+    this._historyPending.add(key);
+    try {
+      const end=new Date(), start=new Date(end.getTime()-86400000);
+      const path="history/period/"+encodeURIComponent(start.toISOString())+"?end_time="+encodeURIComponent(end.toISOString())+"&filter_entity_id="+encodeURIComponent(signature)+"&minimal_response&no_attributes";
+      const response=await this._hass.callApi("GET",path);
+      const series={};
+      for(const group of response||[]){
+        const entity=group[0]?.entity_id;
+        if(!entities.includes(entity)) continue;
+        series[entity]=group.map(s=>({t:Date.parse(s.last_updated||s.last_changed),v:s.state==="unknown"||s.state==="unavailable"||s.state===""?null:Number(s.state)})).filter(s=>Number.isFinite(s.t)).sort((a,b)=>a.t-b.t);
+      }
+      this._history[key]={signature,at:Date.now(),start:+start,end:+end,series};
+    } catch(error) {
+      this._history[key]={signature,at:Date.now(),error:true};
+    } finally {
+      this._historyPending.delete(key);
+      if(this.isConnected&&!this._editing) this.render();
+    }
+  }
+  chart(record, definitions, empty) {
+    if(!record?.series) return '<p class="empty">'+html(empty)+'</p>';
+    const series=definitions.map(d=>({...d,points:record.series[d.id]||[]})).filter(d=>d.points.some(p=>Number.isFinite(p.v)));
+    if(!series.length) return '<p class="empty">'+html(empty)+'</p>';
+    const W=720,H=190,L=48,R=52,T=12,B=27;
+    const axes={};
+    for(const d of series){
+      const values=d.points.filter(p=>Number.isFinite(p.v)).map(p=>p.v);
+      (axes[d.axis]??=[]).push(...values);
+    }
+    const bounds={};
+    for(const [axis,values] of Object.entries(axes)){
+      let lo=Math.min(...values),hi=Math.max(...values);
+      if(axis==="power")lo=Math.min(0,lo);
+      if(hi-lo<.01){lo-=.5;hi+=.5;}
+      bounds[axis]=[lo,hi];
+    }
+    const x=t=>L+Math.max(0,Math.min(1,(t-record.start)/(record.end-record.start)))*(W-L-R);
+    const y=(v,a)=>T+(bounds[a][1]-v)/(bounds[a][1]-bounds[a][0])*(H-T-B);
+    const grid=Array.from({length:5},(_,i)=>{
+      const yy=T+i*(H-T-B)/4;
+      const label=a=>bounds[a]?(bounds[a][1]-(bounds[a][1]-bounds[a][0])*i/4).toFixed(a==="price"?2:1):"";
+      const left=series[0].axis, right=series.find(s=>s.axis!==left)?.axis;
+      return '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" class="chart-grid"/><text x="'+(L-6)+'" y="'+(yy+4)+'" text-anchor="end">'+html(label(left))+'</text>'+(right?'<text x="'+(W-R+6)+'" y="'+(yy+4)+'">'+html(label(right))+'</text>':"");
+    }).join("");
+    const ticks=Array.from({length:5},(_,i)=>'<text x="'+(L+i*(W-L-R)/4)+'" y="'+(H-5)+'" text-anchor="middle">'+html(new Date(record.start+i*(record.end-record.start)/4).toLocaleTimeString(this._hass.language,{hour:"2-digit",minute:"2-digit"}))+'</text>').join("");
+    const paths=series.map(d=>{
+      let path="",open=false;
+      for(const p of d.points){
+        if(!Number.isFinite(p.v)){open=false;continue;}
+        path+=(open?"L":"M")+x(p.t).toFixed(1)+","+y(p.v,d.axis).toFixed(1)+" ";
+        open=true;
+      }
+      return '<path d="'+path+'" fill="none" stroke="'+d.color+'" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+    }).join("");
+    return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Historical series">'+grid+ticks+paths+'</svg><div class="legend">'+series.map(d=>'<span><i style="background:'+d.color+'"></i>'+html(d.label)+'</span>').join("")+'</div>';
+  }
   render() {
     if (!this._hass || !this._panel) return;
     const it=(this._hass.language||"en").startsWith("it");
     const tr=(a,b)=>it?a:b;
     const state=id=>this._hass.states[id];
     const val=id=>{const s=state(id);return !s||["unknown","unavailable"].includes(s.state)?"—":s.state+(s.attributes.unit_of_measurement?" "+s.attributes.unit_of_measurement:"");};
-    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["energy",tr("Energia","Energy")],["forecast",tr("Previsioni","Forecast")],["settings",tr("Impostazioni","Settings")]];
+    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["energy",tr("Energia","Energy")],["forecast",tr("Previsioni","Forecast")],["tariffs",tr("Tariffe","Tariffs")],["history",tr("Storico","History")],["settings",tr("Impostazioni","Settings")]];
+    const icon=(name)=>'<ha-icon icon="mdi:'+name+'"></ha-icon>';
     const card=(title,value)=>'<article><small>'+html(title)+'</small><strong>'+html(value)+'</strong></article>';
     const installations=this._panel.config?.installations||[];
     const sections=installations.map(e=>{
       const ids=e.entities||{}, diag=state(ids.calibration)?.attributes||{}, fit=diag.fit||diag.last_valid?.fit||{};
       const advisory=state(ids.recommended_source)?.attributes||{};
       const ranked=advisory.candidates||[];
+      if(["overview","history","tariffs"].includes(this._page)) this.loadHistory(e,ids);
       const costs=new Map(ranked.map(x=>[x.id,x.cost]));
       const rows=(e.generators||[]).map(g=>'<tr><td>'+html(g.name)+'</td><td>'+html(val(g.state_entity))+'</td><td>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</td></tr>').join("");
-      const overview='<div class="grid">'+card(tr("Temperatura interna media","Average indoor temperature"),val(ids.indoor_average))+card(tr("Temperatura esterna","Outdoor temperature"),val(ids.outdoor_temperature))+card(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand))+card(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source))+card(tr("Prezzo elettricità","Electricity price"),val(ids.electricity_price))+'</div>';
-      const generators='<article><h2>'+tr("Confronto generatori","Generator comparison")+'</h2>'+(rows?'<table><thead><tr><th>'+tr("Generatore","Generator")+'</th><th>'+tr("Stato","State")+'</th><th>'+tr("Costo termico","Heat cost")+'</th></tr></thead><tbody>'+rows+'</tbody></table>':html(tr("Nessun generatore configurato","No generators configured")))+'</article>';
-      const learning='<article><h2>'+tr("Modello termico","Thermal model")+'</h2><div class="grid">'+card(tr("Dispersioni","Heat loss"),fit.loss_w_k!=null?Number(fit.loss_w_k).toFixed(1)+" W/K":"—")+card(tr("Inerzia","Thermal capacity"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":"—")+card("COP",fit.cop!=null?Number(fit.cop).toFixed(2):"—")+card(tr("Campioni validi","Valid samples"),fit.samples??"—")+card(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+'</div></article>';
+      const kpi=(label,value,ico,tone)=>'<div class="kpi '+tone+'">'+icon(ico)+'<div><small>'+html(label)+'</small><strong>'+html(value)+'</strong></div></div>';
+      const overview='<div class="kpis">'+kpi(tr("Temperatura interna media","Average indoor temperature"),val(ids.indoor_average),"home-thermometer","blue")+kpi(tr("Temperatura esterna","Outdoor temperature"),val(ids.outdoor_temperature),"thermometer","blue")+kpi(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand),"fire","orange")+kpi(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source),"heat-pump","green")+kpi(tr("Costo termico stimato","Estimated heat cost"),ranked.length?Number(ranked[0].cost).toFixed(3)+" €/kWh":"—","cash-multiple","purple")+'</div>';
+      const sorted=[...(e.generators||[])].sort((a,b)=>(costs.get(a.id)??Infinity)-(costs.get(b.id)??Infinity));
+      const generators='<article class="generators"><h2>'+icon("chart-bar")+tr("Confronto generatori","Generator comparison")+'</h2>'+(sorted.length?sorted.map((g,i)=>'<div class="rank '+(ranked[0]?.id===g.id?"best":"")+'"><span class="rank-no">'+(costs.has(g.id)?i+1:"—")+'</span><div class="rank-name"><b>'+html(g.name)+'</b><small>'+html(val(g.state_entity))+'</small></div><b>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</b></div>').join(""):html(tr("Nessun generatore configurato","No generators configured")))+'</article>';
+      const detail=(label,value)=>'<div class="detail"><span>'+html(label)+'</span><b>'+html(value)+'</b></div>';
+      const learning='<article class="learning"><h2>'+icon("vector-triangle")+tr("Modello termico","Thermal model")+'</h2>'+detail(tr("Dispersioni H","Heat loss H"),advisory.loss_w_k!=null?Number(advisory.loss_w_k).toFixed(1)+" W/K":"—")+detail(tr("Inerzia C (stimata)","Capacity C (estimated)"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":"—")+detail(tr("Errore RMSE","RMSE error"),fit.rmse_kw!=null?Number(fit.rmse_kw).toFixed(2)+" kW":"—")+detail(tr("Campioni validi","Valid samples"),fit.samples??"—")+detail(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+'</article>';
       const energyData=state(ids.energy_forecast)?.attributes||{};
       const metric=(v,u)=>v==null?"—":Number(v).toFixed(2)+" "+u;
-      const energy='<article><h2>'+tr("Energia disponibile","Available energy")+'</h2><div class="grid">'+card(tr("Fotovoltaico","Solar PV"),metric(energyData.pv_kw,"kW"))+card(tr("Immissione in rete","Grid export"),metric(energyData.export_kw,"kW"))+card(tr("Batteria","Battery"),metric(energyData.battery_soc,"%"))+'</div></article>';
+      const energy='<article class="energy"><h2>'+icon("solar-power")+tr("Fotovoltaico e batteria","Solar PV and battery")+'</h2>'+detail(tr("FV attuale","Current PV"),metric(energyData.pv_kw,"kW"))+detail(tr("Batteria","Battery"),metric(energyData.battery_soc,"%"))+detail(tr("Immissione in rete","Grid export"),metric(energyData.export_kw,"kW"))+'</article>';
+      const priceChart=this.chart(this._history[e.id],[{id:ids.electricity_price,axis:"price",color:"#48b8ed",label:tr("Prezzo marginale (€/kWh)","Marginal price (€/kWh)")}],tr("Storico non disponibile","History unavailable"));
+      const tariffs='<article class="tariffs"><h2>'+icon("lightning-bolt")+tr("Prezzo energia","Energy price")+'</h2>'+detail(tr("Prezzo elettricità marginale","Marginal electricity price"),val(ids.electricity_price))+detail(tr("Origine prezzo","Price source"),advisory.price_source||"—")+'<h3>'+tr("Andamento ultime 24 ore","Last 24 hours")+'</h3>'+priceChart+'</article>';
+      const history='<article class="history"><h2>'+icon("chart-line")+tr("Storico temperature e fabbisogno","Temperature and demand history")+'</h2>'+this.chart(this._history[e.id],[{id:ids.indoor_average,axis:"temp",color:"#f59e42",label:tr("Interna (°C)","Indoor (°C)")},{id:ids.outdoor_temperature,axis:"temp",color:"#48b8ed",label:tr("Esterna (°C)","Outdoor (°C)")},{id:ids.heat_demand,axis:"power",color:"#b38af3",label:tr("Fabbisogno (kW)","Demand (kW)")}],tr("Dati storici non disponibili","History unavailable"))+'</article>';
+      const actions='<article class="actions"><h2>'+icon("lightning-bolt")+tr("Azioni rapide","Quick actions")+'</h2><button data-page="learning">'+tr("Modello e calibrazione","Model and calibration")+'</button><button data-page="generators">'+tr("Confronta generatori","Compare generators")+'</button><button data-page="forecast">'+tr("Previsioni e piano","Forecast and plan")+'</button><a href="/config/integrations">'+tr("Apri impostazioni","Open settings")+'</a></article>';
       const forecastRows=(energyData.plan||[]).map(h=>'<tr><td>'+html(new Date(h.datetime).toLocaleString(this._hass.language,{weekday:"short",hour:"2-digit",minute:"2-digit"}))+'</td><td>'+html(metric(h.outdoor_c,"°C"))+'</td><td>'+html(metric(h.heat_kw,"kW"))+'</td><td>'+html(h.generator_name||"—")+'</td><td>'+html(metric(h.cost_per_hour,"€/h"))+'</td></tr>').join("");
       const forecast='<article><h2>'+tr("Pianificazione oraria","Hourly planning")+'</h2><p>'+tr("Stima a prezzo corrente, senza previsione del surplus solare.","Current-price estimate, without future solar surplus forecast.")+'</p>'+(forecastRows?'<table><thead><tr><th>'+tr("Ora","Hour")+'</th><th>°C</th><th>kW</th><th>'+tr("Generatore","Generator")+'</th><th>€/h</th></tr></thead><tbody>'+forecastRows+'</tbody></table>':html(val(ids.energy_forecast)))+'</article>';
       const allZones=Object.entries(this._zones[e.id]||e.zones||{});
@@ -61,8 +133,9 @@ class SmartHeatingPanel extends HTMLElement {
       }).join("");
       const visible=allZones.filter(([,z])=>z.temperature||(!z.confirmed&&z.temperature_candidates?.length));
       const zones='<article><h2>'+tr("Zone termiche","Heating zones")+'</h2><div class="grid">'+zoneCards(visible)+'</div>'+(visible.length?"":'<p>'+tr("Nessuna zona con termometro","No zones with thermometer")+'</p>')+'</article>';
+      const compactZones='<article class="zones"><h2>'+icon("view-grid")+tr("Zone termiche","Heating zones")+'</h2>'+visible.map(([area,z])=>{const t=z.temperature||(!z.confirmed&&z.temperature_candidates?.length===1?z.temperature_candidates[0]:null);return '<div class="zone-row"><span>'+icon(z.outdoor?"thermometer":"home-thermometer")+'</span><div><b>'+html(z.name)+'</b>'+(!z.outdoor&&z.target_c!=null?'<small>Target: '+html(z.target_c)+' °C</small>':"")+'</div><b>'+html(val(t))+'</b></div>';}).join("")+'</article>';
       const settings='<article><h2>'+tr("Configurazione delle zone","Zone configuration")+'</h2><p>'+tr("Qui puoi configurare anche le aree senza termometro.","Configure areas without thermometers here as well.")+'</p><div class="grid">'+zoneCards(allZones)+'</div></article>';
-      return '<section>'+({overview:overview+energy+zones+generators+forecast+learning,zones,generators,learning,energy,forecast,settings}[this._page]||overview)+'</section>';
+      return '<section>'+({overview:overview+'<div class="dashboard">'+generators+compactZones+tariffs+learning+energy+history+actions+'</div>',zones,generators,learning,energy,forecast,tariffs,history,settings}[this._page]||overview)+'</section>';
     }).join("");
     let modal="";
     if(this._editing){
@@ -84,8 +157,18 @@ class SmartHeatingPanel extends HTMLElement {
     }
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;color:var(--primary-text-color);background:var(--primary-background-color);font-family:var(--paper-font-body1_-_font-family,system-ui);min-height:100vh}
-      main{max-width:1400px;margin:auto;padding:clamp(12px,3vw,32px)} header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap} h1{font-size:clamp(22px,3vw,32px);margin:0} h2{font-size:17px;margin:0 0 14px} p,small{color:var(--secondary-text-color)} nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0} button,a{font:inherit;color:var(--primary-color);background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:10px;padding:10px 14px;cursor:pointer} button[aria-current=true]{background:var(--primary-color);color:var(--text-primary-color,#fff)} article{background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);border-radius:12px;padding:16px;min-width:0;margin-bottom:12px} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px} .grid article{margin:0} strong{display:block;font-size:22px;margin-top:8px;overflow-wrap:anywhere} table{width:100%;border-collapse:collapse;text-align:left} th,td{padding:12px 4px;border-bottom:1px solid var(--divider-color);overflow-wrap:anywhere} section{margin-bottom:24px} .mode{color:var(--secondary-text-color);font-size:14px} .grid+article{margin-top:12px}  .overlay{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:16px}.dialog{background:var(--card-background-color);border-radius:14px;padding:24px;width:min(480px,90vw);max-height:85vh;overflow:auto;box-sizing:border-box}.dialog select{display:block;width:100%;padding:10px;margin:8px 0;background:var(--card-background-color);color:var(--primary-text-color)}.choices{max-height:40vh;overflow:auto}.choices label{display:block;padding:8px}.dialog footer{display:flex;justify-content:flex-end;gap:8px}.error{color:var(--error-color)} </style>
-      <main><header><h1>Smart Heating Energy Manager</h1><span class="mode">● ${tr("Modalità consultiva · controllo disattivato","Advisory mode · control disabled")}</span></header>
+      main{max-width:1400px;margin:auto;padding:clamp(12px,3vw,32px)} header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap} h1{font-size:clamp(22px,3vw,32px);margin:0} h2{font-size:17px;margin:0 0 14px} p,small{color:var(--secondary-text-color)} nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0} button,a{font:inherit;color:var(--primary-color);background:var(--card-background-color);border:1px solid var(--divider-color);border-radius:10px;padding:10px 14px;cursor:pointer} button[aria-current=true]{background:var(--primary-color);color:var(--text-primary-color,#fff)} article{background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);border-radius:12px;padding:16px;min-width:0;margin-bottom:12px} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px} .grid article{margin:0} strong{display:block;font-size:22px;margin-top:8px;overflow-wrap:anywhere} table{width:100%;border-collapse:collapse;text-align:left} th,td{padding:12px 4px;border-bottom:1px solid var(--divider-color);overflow-wrap:anywhere} section{margin-bottom:24px} .mode{color:var(--secondary-text-color);font-size:14px} .grid+article{margin-top:12px}  .overlay{position:fixed;inset:0;background:#0008;z-index:100;display:grid;place-items:center;padding:16px}.dialog{background:var(--card-background-color);border-radius:14px;padding:24px;width:min(480px,90vw);max-height:85vh;overflow:auto;box-sizing:border-box}.dialog select{display:block;width:100%;padding:10px;margin:8px 0;background:var(--card-background-color);color:var(--primary-text-color)}.choices{max-height:40vh;overflow:auto}.choices label{display:block;padding:8px}.dialog footer{display:flex;justify-content:flex-end;gap:8px}.error{color:var(--error-color)} 
+      main{max-width:1800px} header h1{display:flex;align-items:center;gap:10px} header h1 ha-icon{color:#f59e42;--mdc-icon-size:32px}
+      .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+      .kpi{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--divider-color);border-radius:12px;background:var(--card-background-color);min-width:0}
+      .kpi ha-icon{color:var(--tone);--mdc-icon-size:32px}.kpi strong{font-size:clamp(15px,1.6vw,24px);margin-top:4px}.kpi small{font-size:12px}.blue{--tone:#48b8ed}.orange{--tone:#f59e42}.green{--tone:#50c879}.purple{--tone:#b38af3}
+      .kpi{background:color-mix(in srgb,var(--card-background-color) 91%,var(--tone))}
+      .dashboard{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;align-items:stretch}.dashboard article{margin:0;padding:14px}.dashboard h2{display:flex;align-items:center;gap:8px;font-size:16px}.dashboard .tariffs{grid-column:3;grid-row:1 / span 2}.dashboard .learning{grid-column:1;grid-row:2}.dashboard .energy{grid-column:2;grid-row:2}.dashboard .history{grid-column:1 / span 2}.dashboard .actions{grid-column:3}
+      .rank,.zone-row,.detail{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--divider-color)}.rank:last-child,.zone-row:last-child,.detail:last-child{border-bottom:0}.rank-no{border-radius:50%;width:24px;height:24px;display:grid;place-items:center;background:var(--secondary-background-color);flex-shrink:0}.rank-name,.zone-row>div{flex:1;min-width:0;overflow-wrap:anywhere}.rank-name small,.zone-row small{display:block;margin-top:4px}.rank.best{border:1px solid #50c879;border-radius:8px;padding:8px;background:color-mix(in srgb,var(--card-background-color) 90%,#50c879)}.rank.best .rank-no{background:#50c879;color:#102018}.detail{justify-content:space-between;font-size:14px}.zone-row ha-icon{color:var(--primary-color)}.actions button,.actions a{display:block;width:100%;box-sizing:border-box;text-align:left;margin-bottom:8px;text-decoration:none}.chart{width:100%;height:auto;overflow:visible}.chart text{fill:var(--secondary-text-color);font-size:10px}.chart-grid{stroke:var(--divider-color);stroke-width:1}.legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:12px}.legend i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:5px}.empty{font-size:13px;padding:16px 0} .tariffs h3{font-size:13px}
+      @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard .tariffs,.dashboard .learning,.dashboard .energy,.dashboard .actions{grid-column:auto;grid-row:auto}.dashboard .history{grid-column:1 / -1}}
+      @media(max-width:650px){main{padding:12px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{padding:10px;gap:7px}.kpi ha-icon{--mdc-icon-size:24px}.dashboard{grid-template-columns:1fr}.dashboard .history{grid-column:auto}nav{margin:14px 0}.rank{flex-wrap:wrap}}
+      </style>
+      <main><header><h1><ha-icon icon="mdi:fire"></ha-icon>Smart Heating Energy Manager</h1><span class="mode">● ${tr("Modalità consultiva · controllo disattivato","Advisory mode · control disabled")}</span></header>
       <nav>${pages.map(([k,t])=>'<button data-page="'+k+'" aria-current="'+(k===this._page)+'">'+html(t)+'</button>').join("")}</nav>
       ${this._notice?'<p role="status">'+html(this._notice)+'</p>':""}${sections||'<p>'+tr("Nessun impianto disponibile","No installation available")+'</p>'}</main>${modal}`;
     this.shadowRoot.querySelectorAll("button[data-page]").forEach(b=>b.addEventListener("click",()=>{this._page=b.dataset.page;this.render();}));

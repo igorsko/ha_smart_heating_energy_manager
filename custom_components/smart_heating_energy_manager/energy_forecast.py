@@ -70,7 +70,11 @@ class EnergyForecast(SensorEntity):
                 attrs["forecast"]=hours
                 ref=reference_config(d,zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor")))
                 loss,source=effective_loss(ref,self.hass.data[DOMAIN][self.entry_id]["learned"])
-                index=self.hass.states.get(d.get("pun","")) if d.get("use_index") and d.get("pun") else None
+                from homeassistant.helpers import entity_registry as er
+                from .tariff_discovery import candidates
+                found=candidates(er.async_get(self.hass).entities.values(),self.hass.states.get)
+                index_id=d.get("pun") or (found[0] if len(found)==1 else None)
+                index=self.hass.states.get(index_id) if d.get("use_index") and index_id else None
                 if index and dt_util.utcnow()-index.last_updated>timedelta(hours=d.get("index_max_age_hours",36)):
                     index=None
                 price,_=electricity_price(index.state if index else None,index.attributes.get("unit_of_measurement") if index else None,d.get("fixed"),d.get("spread",0),d.get("losses",0),d.get("variable",0),d.get("tax",0),d.get("vat",0))

@@ -57,8 +57,6 @@ async def save_zone(hass, connection, msg):
     sources=[] if outdoor else list(dict.fromkeys(msg["sources"]))
     configured=configured_sources(options.get("generators",entry.data.get("generators",{})))
     def allowed(entity):
-        if entity in previous.get("sources",[]):
-            return True
         state=hass.states.get(entity)
         return state is not None and eligible(entity,state.attributes,entity in configured)
     if any(not allowed(s) for s in sources):

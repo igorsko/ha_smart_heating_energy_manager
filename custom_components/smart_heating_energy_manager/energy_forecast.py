@@ -28,6 +28,8 @@ class EnergyForecast(SensorEntity):
         self._forecast_attrs={}
         self._live_attrs={}
         self._refreshing=False
+        self._base_profile={}
+        self._profile_date=None
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
         self.async_on_remove(async_track_time_interval(self.hass,self.refresh,timedelta(minutes=15)))
@@ -165,8 +167,33 @@ class EnergyForecast(SensorEntity):
                     battery["capacity"]=self._live_attrs.get("battery_capacity_kwh")
             elif self._live_attrs.get("energy_dashboard_sources",{}).get("battery"):
                 attrs["joint_plan"]={"status":"battery_not_modeled"}
+            base=settings.get("base_kw")
+            if settings.get("base_home_power"):
+                excluded=set(settings.get("base_excluded_power",[]))
+                electric=[g for g in d.get("generators",{}).values() if g.get("enabled",True) and g.get("kind") in ("heat_pump","resistance")]
+                required=[g.get("power_entity") for g in electric]
+                if d.get("dhw",{}).get("entity"):
+                    required.append(d["dhw"].get("power"))
+                if any(not e or e not in excluded for e in required):
+                    attrs["joint_plan"]={"status":"configure_excluded_loads"}
+                if "joint_plan" not in attrs and self._profile_date!=now.date():
+                    try:
+                        from .load_profile import async_profile
+                        self._base_profile=await async_profile(self.hass,settings)
+                        self._profile_date=now.date()
+                    except Exception:
+                        _LOGGER.exception("Household load history unavailable")
+                        self._base_profile={}
+                attrs["base_load_profile"]=self._base_profile
+                base={}
+                for row in attrs["plan"]:
+                    stamp=dt_util.parse_datetime(row["datetime"])
+                    if stamp and stamp.tzinfo:
+                        value=self._base_profile.get(str(dt_util.as_local(stamp).hour),{}).get("kw")
+                        if value is not None:
+                            base[stamp.astimezone(timezone.utc).isoformat()]=value
             if "joint_plan" not in attrs:
-                attrs["joint_plan"]=optimize(attrs["plan"],attrs["solar_forecast"],settings.get("base_kw"),price,self._live_attrs.get("dhw"),battery,now,settings.get("export_price"))
+                attrs["joint_plan"]=optimize(attrs["plan"],attrs["solar_forecast"],base,price,self._live_attrs.get("dhw"),battery,now,settings.get("export_price"))
         self._attr_native_value=status
         self._forecast_attrs=attrs
         self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}

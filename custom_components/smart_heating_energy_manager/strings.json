@@ -221,7 +221,9 @@
           "reserve": "Minimum reserve (%)",
           "charge_kw": "Maximum charge power (kW)",
           "discharge_kw": "Maximum discharge power (kW)",
-          "efficiency": "One-way efficiency (0–1)"
+          "efficiency": "One-way efficiency (0–1)",
+          "base_home_power": "Whole-home power history",
+          "base_excluded_power": "All electric heating and DHW power sensors to subtract"
         }
       }
     },

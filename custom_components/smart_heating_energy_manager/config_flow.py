@@ -49,6 +49,9 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         old=zones.get(self._area,{})
         outdoor=is_outdoor(self._area,{**area,**old},self.options.get("outdoor",self.config_entry.data.get("outdoor")))
         if user_input is not None:
+            from .heat_sources import zone_candidates
+            if not set(user_input.get("sources",[])).issubset(zone_candidates(self.hass,self.devices)):
+                return await self.async_step_zone_details()
             zones[self._area]={**zones.get(self._area,{}),"temperature":user_input.get("temperature"),
                 "sources":[] if outdoor else user_input.get("sources",[]),"confirmed":True}
             self.options["zones"]=zones
@@ -56,12 +59,14 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         old=zones.get(self._area,{})
         candidates=area["temperature_candidates"]
         temperature=old.get("temperature") if old.get("confirmed") else candidates[0] if len(candidates)==1 else None
-        sources=old.get("sources",[]) if old.get("confirmed") else area["source_candidates"]
+        from .heat_sources import zone_candidates
+        allowed=zone_candidates(self.hass,self.devices)
+        sources=[s for s in (old.get("sources",[]) if old.get("confirmed") else area["source_candidates"]) if s in allowed]
         fields={
             vol.Optional("temperature",description={"suggested_value":temperature} if temperature else {}):
                 selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Optional("sources",description={"suggested_value":sources}):
-                selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"],multiple=True))
+                selector.SelectSelector(selector.SelectSelectorConfig(options=[{"value":s,"label":self.hass.states.get(s).name} for s in allowed],multiple=True,mode=selector.SelectSelectorMode.DROPDOWN))
         }
         if outdoor:
             fields={k:v for k,v in fields.items() if k.schema!="sources"}
@@ -324,6 +329,8 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="joint_plan",data_schema=vol.Schema({
             vol.Required("enabled",default=current.get("enabled",False)):bool,
             opt("base_kw"):numeric(0,50),
+            opt("base_home_power"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power")),
+            opt("base_excluded_power"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power",multiple=True)),
             opt("export_price"):numeric(0,10),
             vol.Required("use_battery",default=current.get("use_battery",False)):bool,
             opt("capacity"):numeric(.1,1000),

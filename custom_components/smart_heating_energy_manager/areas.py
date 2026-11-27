@@ -18,7 +18,7 @@ def discover_areas(hass):
             result[area]["temperature_candidates"].append(e.entity_id)
         if e.domain=="climate":
             modes=state.attributes.get("hvac_modes",[]) if state else []
-            if not modes or any(m in modes for m in ("heat","heat_cool","auto")):
+            if any(m in modes for m in ("heat","heat_cool","auto")):
                 result[area]["source_candidates"].append(e.entity_id)
     for zone in result.values():
         for field in ("temperature_candidates","source_candidates"):

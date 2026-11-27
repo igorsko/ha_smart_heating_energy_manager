@@ -48,3 +48,29 @@ def effective_loss(config,record):
     from .bootstrap import building_estimate
     h,_=building_estimate(config)
     return h,"estimated" if h is not None else "learning_pending"
+
+
+def validated_cop(config, record):
+    """Return only an independently checked aggregate COP, never a per-head fit."""
+    if not config.get("apply_learned",False):
+        return None
+    valid=current(record,config)
+    if not valid or validation_status(valid["validation"])!="historically_validated":
+        return None
+    fit,check=valid["fit"],valid["validation"]
+    if fit.get("cop_source")!="estimated" or check.get("training_cop_source")!="estimated":
+        return None
+    n,mae,baseline,training=(check.get(k) for k in ("hp_samples","hp_mae_c","hp_baseline_mae_c","training_cop"))
+    if any(not isinstance(v,(int,float)) or isinstance(v,bool) or not isfinite(v) for v in (n,mae,baseline,training)):
+        return None
+    cop=fit["cop"]
+    if cop is None or n<8 or not 0<=mae<=.5 or mae>=baseline or not 1<=training<=8 or abs(cop-training)>max(.3,.15*training):
+        return None
+    return cop
+
+
+def cop_context(config,record):
+    """Expose aggregate estimate without attributing it to individual splits."""
+    cop=validated_cop(config,record)
+    count=sum(g.get("kind")=="heat_pump" for g in config.get("generators",{}).values())
+    return {"cop":cop,"scope":"single_generator" if count==1 else "aggregate","generator_count":count}

@@ -83,3 +83,11 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(m.fuel_live(d,states.get,now)["rate_kg_h"],0)
         states["binary_sensor.burning"].state="unknown"
         self.assertIsNone(m.fuel_live(d,states.get,now)["rate_kg_h"])
+
+    def test_cop_consistency(self):
+        d={"kind":"heat_pump","technical_configured":False,"_learned_cop":4,"_capacity_origin":"declared","capacity_kw":3}
+        self.assertEqual(m.effective_cop(d,7),(4,"learned"))
+        self.assertAlmostEqual(m.economic_costs({"hp":d},.3,7)[0]["cost"],.075)
+        self.assertEqual(m.advisory_generator(d,"hp",7).efficiency,4)
+        self.assertEqual(m.effective_cop({**d,"technical_configured":True,"efficiency":2.5},7),(2.5,"manual"))
+        self.assertEqual(m.effective_cop({**d,"cop_curve":"0=2\n10=4"},5),(3,"configured_curve"))

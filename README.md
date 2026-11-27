@@ -59,3 +59,7 @@ The advanced form uses the same calibration resolver as live monitoring. Automat
 ### Generator hourly telemetry (0.3.18)
 
 When an instantaneous electrical input sensor is missing, recent Recorder counter observations can provide a mean electrical power over a bounded 30–120 minute interval. Reset, stale, unchanged or invalid counters are rejected. The displayed hourly cost uses the current tariff, not a historical bill. Pellet rate, hourly fuel cost and estimated heat are shown only with explicit burning-state evidence; auxiliary electricity is excluded. / La potenza media ricavata dai contatori non è una misura istantanea. Il consumo di pellet e il costo orario sono distinti dal costo per kWh termico.
+
+### Validated learned COP (0.3.19)
+
+The historical holdout includes a separate heat-pump-active error check. A learned COP requires explicit opt-in, sufficient heat-pump validation intervals, improvement over persistence and agreement between training and full-fit COP. Explicit configured COP curves and confirmed manual parameters take precedence. A single-generator estimate can be used in advisory calculations; multiple generators expose only an aggregate COP, never a per-head estimate. This is a model-derived estimate, not calorimetry. / Il COP appreso è utilizzabile solo dopo validazione storica e consenso; con più pompe di calore rimane un dato complessivo.

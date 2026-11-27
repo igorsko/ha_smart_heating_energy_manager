@@ -37,3 +37,19 @@ class LearnedTests(unittest.TestCase):
         record=m.accepted(self.result,config)
         self.assertEqual(m.validation_status(record["validation"]),"poor_validation")
         self.assertEqual(m.effective_loss(config,record),(200,"manual"))
+
+    def test_cop_requires_specific_holdout_and_stability(self):
+        config={**self.config,"apply_learned":True,"generators":{"hp":{"kind":"heat_pump"}}}
+        self.result["fit"]["cop_source"]="estimated"
+        self.result["validation"]={"status":"evaluated","mae_c":.2,"rmse_c":.3,"bias_c":.1,"baseline_mae_c":.4,"samples":12,"training_samples":24,"hp_samples":8,"hp_mae_c":.2,"hp_baseline_mae_c":.4,"training_cop":3.1,"training_cop_source":"estimated"}
+        record=m.accepted(self.result,config)
+        self.assertEqual(m.validated_cop(config,record),3)
+        self.assertEqual(m.cop_context(config,record)["scope"],"single_generator")
+        self.assertIsNone(m.validated_cop({**config,"apply_learned":False},record))
+        self.result["validation"]["hp_samples"]=2
+        self.assertIsNone(m.validated_cop(config,m.accepted(self.result,config)))
+        self.result["validation"].update(hp_samples=8,training_cop=5)
+        self.assertIsNone(m.validated_cop(config,m.accepted(self.result,config)))
+        self.result["validation"]["training_cop"]=3.1
+        config["generators"]["hp2"]={"kind":"heat_pump"}
+        self.assertEqual(m.cop_context(config,m.accepted(self.result,config))["scope"],"aggregate")

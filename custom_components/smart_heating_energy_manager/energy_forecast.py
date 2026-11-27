@@ -149,6 +149,12 @@ class EnergyForecast(SensorEntity):
                 from .bootstrap import declared_capacity, winnet_parameters, advisory_generator
                 entries=list(er.async_get(self.hass).entities.values())
                 devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
+                from .learned import cop_context
+                cop_info=cop_context(ref,self.hass.data[DOMAIN][self.entry_id]["learned"])
+                if cop_info["scope"]=="single_generator" and cop_info["cop"] is not None:
+                    for v in devices.values():
+                        if v["kind"]=="heat_pump":
+                            v["_learned_cop"]=cop_info["cop"]
                 thermal_hours=[]
                 for h in hours:
                     gs=[]

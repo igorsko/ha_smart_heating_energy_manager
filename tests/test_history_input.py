@@ -56,3 +56,12 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(combined.counter_delta(3600,7200,7200),1)
         self.assertEqual(combined.counter_delta(10800,14400,7200),1)
         self.assertIsNone(h.AlternativeSeries([self.series(0,None)]).counter_delta(0,3600,7200))
+
+    def test_stable_off_requires_bounded_evidence(self):
+        series=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(36000,0)])
+        self.assertEqual(series.counter_delta(10800,14400,7200),0)
+        self.assertIsNone(series.counter_delta(45000,48600,7200))
+        broken=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(18000,None),h.Sample(36000,0)])
+        self.assertIsNone(broken.counter_delta(10800,21600,7200))
+        self.assertIsNone(broken.counter_delta(10800,14400,7200))
+        self.assertIsNone(broken.counter_delta(21600,25200,7200))

@@ -12,3 +12,10 @@ class TemperatureTests(unittest.TestCase):
     def test_missing(self):
         self.assertEqual(m.average_temperature(["a","b"],{"a":0,"b":None}.get),(0,1))
         self.assertEqual(m.resolve({}, "sensor.in","sensor.out"),(["sensor.in"],"sensor.out"))
+
+    def test_cooling_references_deduplicate_groups_and_exclude_outside(self):
+        zones={"a":{"name":"A","temperature":"sensor.a","thermal_group":"Open space"},"b":{"name":"B","temperature":"sensor.a","thermal_group":"open SPACE"},"c":{"name":"C","temperature_candidates":["sensor.c"],"thermal_group":"Open space"},"d":{"name":"Esterno","temperature":"sensor.out","thermal_group":"Open space"}}
+        refs=m.reference_config({},zones)["cooling_references"]
+        self.assertEqual(refs["zone:c"]["entities"],["sensor.c"])
+        self.assertEqual(refs["group:open space"]["entities"],["sensor.a","sensor.c"])
+        self.assertNotIn("zone:d",refs)

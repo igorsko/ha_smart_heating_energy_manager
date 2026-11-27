@@ -4,7 +4,7 @@ from datetime import timedelta
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
-from .calibration import fit
+from .calibration import fit, validate_holdout
 from .history_input import Sample, Series, MeanSeries, RateSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
@@ -129,12 +129,14 @@ async def async_calibrate(hass, config):
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         quality["complete_intervals"]=len(intervals)
         quality["complete_fraction"]=len(intervals)/quality["expected_intervals"] if quality["expected_intervals"] else 0
+        known_cop=None
         result=fit(intervals)
         if result is None:
             hp=[g for _,g in devices if g["kind"]=="heat_pump"]
             cops={g["efficiency"] for g in hp if not g.get("cop_curve")}
             if hp and len(cops)==1 and all(not g.get("cop_curve") for g in hp):
-                result=fit(intervals,known_cop=next(iter(cops)))
+                known_cop=next(iter(cops))
+                result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)

@@ -109,6 +109,11 @@ def calibration_inputs(devices, entries, read):
             if g["state_entity"]==control.entity_id:
                 g["active_states"]=g.get("active_states") or "on"
                 g["inactive_states"]=g.get("inactive_states") or "off"
+        # Vertigo heating enable is a thermostat request, not confirmed element runtime.
+        # Never infer heat from its control state alone.
+        vertigo_request=bool(control and control.platform=="olimpia_vertigo" and g.get("state_entity")==control.entity_id)
+        if vertigo_request:
+            g.pop("manual_input_rate",None)
         runtime=bool(g.get("state_entity") and finite(g.get("manual_input_rate")) and g["manual_input_rate"]>0 and g.get("active_states") and g.get("inactive_states"))
         meter=bool(g.get("energy_entity") or g.get("power_entity"))
         if g.get("kind")=="fuel":
@@ -118,7 +123,7 @@ def calibration_inputs(devices, entries, read):
         else:
             usable=meter or (g.get("kind")=="resistance" and runtime)
         # Complete manual configurations retain their existing runtime fallback.
-        if ready(original):
+        if ready(original) and not vertigo_request:
             usable=True
         report[key]={"usable":usable,"provisional":not ready(original),"reason":None if usable else "missing_meter_or_confirmed_runtime" if g.get("kind")=="resistance" else "missing_energy_source","entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity") if g.get(k)}}
         result[key]=g

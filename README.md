@@ -13,3 +13,7 @@ After integration setup, Smart Heating appears in the Home Assistant sidebar at 
 ## Area-first setup
 
 Initial setup requires no parameters. The panel discovers Home Assistant areas and proposes temperature sensors and heating-capable climate entities, respecting entity-level area assignments before device-level assignments. Open integration Options → Heating zones to confirm or change each area's thermometer and heating sources. Shared heating sources can be assigned to multiple areas. Switches and scripts can be selected manually. These mappings are advisory and do not automatically create calibrated generator models. Missing prices and heat loss remain unknown, not zero. Building-level historical calibration still requires a reference indoor/outdoor sensor and configured energy sources; automatic per-zone learning is not yet implemented.
+
+## Electrical calibration sources (0.3.10)
+
+Onecta heating-only cumulative counters are discovered across device records only within the same integration entry and appliance prefix. Explicit meter mappings take precedence. Vertigo heating-enable switches are thermostat requests, not measured element runtime; use a dedicated electrical power or energy sensor for calibration. No nominal wattage is assumed. Missing inputs remain unknown. / I contatori Daikin vengono individuati automaticamente; per Vertigo usare un misuratore elettrico dedicato. Lo stato di abilitazione del riscaldamento non misura il consumo.

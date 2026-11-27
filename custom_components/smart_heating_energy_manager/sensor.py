@@ -4,6 +4,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
 from .model import finite, electricity_price, estimate
+from .onboarding import ready
 from .generators import Generator, rank_generators
 
 SCAN_INTERVAL = timedelta(seconds=60)
@@ -72,7 +73,7 @@ class HeatingSensor(SensorEntity):
             demand = max(0, indoor-outdoor)*h/1000 if indoor is not None and outdoor is not None and h is not None and h>0 else None
             devices = d.get("generators", {})
             generators = [Generator(k,v["kind"],v["efficiency"],v["capacity_kw"],v["fuel_price"],
-                          v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]) for k,v in devices.items()]
+                          v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]) for k,v in devices.items() if ready(v)]
             candidates = rank_generators(generators, price, demand)
             recommendation = ("unknown" if demand is None else "none" if demand == 0 else
                               devices[candidates[0][0]]["name"] if candidates else "no_suitable_generator")
@@ -82,6 +83,7 @@ class HeatingSensor(SensorEntity):
         self._attr_available = self._attr_native_value is not None
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
             "thermal_model": model_source, "loss_w_k": loss,
+            "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}
 
 class CalibrationDiagnostic(SensorEntity):

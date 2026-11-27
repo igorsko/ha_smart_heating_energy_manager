@@ -62,6 +62,25 @@ async def async_calibrate(hass, config):
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
     ids=list(dict.fromkeys(ids+[e for _,g in devices for e in g.get("energy_alternatives",[])]))
     ids=list(dict.fromkeys(ids+["sun.sun"]+[e for ref in config.get("cooling_references",{}).values() for e in ref["entities"]]))
+    # Prefer the explicitly configured gross PV production power; otherwise use
+    # the Energy dashboard's unambiguous production power mapping.
+    from .energy_import import async_snapshot
+    import logging
+    try:
+        imported=await async_snapshot(hass)
+    except Exception:
+        logging.getLogger(__name__).exception("Solar history source discovery failed")
+        imported={}
+    power_ids=imported.get("energy_power_entities",{})
+    pv_ids=power_ids.get("pv",[])
+    if not pv_ids:
+        manual=config.get("pv_power")
+        if manual and manual not in power_ids.get("home",[]) and not manual.endswith(("_consumption_ct_power","_consumption_power","_home_power")):
+            pv_ids=[manual]
+    pv_ids=list(dict.fromkeys(pv_ids))
+    if any(e in ids or e in power_ids.get("home",[]) for e in pv_ids):
+        pv_ids=[]
+    ids=list(dict.fromkeys(ids+pv_ids))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -179,6 +198,18 @@ async def async_calibrate(hass, config):
         quality["generator_coverage"]={k:v["coverage"].get("combined",0) for k,v in diagnostics.items()}
         quality["joint_temperature_intervals"]=sum(1 for i in range(quality["expected_intervals"]) if all(v is not None for v in (indoor.value_at(start.timestamp()+i*step,age),indoor.value_at(start.timestamp()+(i+1)*step,age),indoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age),outdoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age))))
         quality["complete_fraction"]=len(intervals)/quality["expected_intervals"] if quality["expected_intervals"] else 0
+        from .passive_solar import collect as solar_collect, estimate as solar_estimate
+        class GrossPV:
+            def __init__(self,series):
+                self.series=series
+            def counter_delta(self,a,b,age):
+                values=[s.counter_delta(a,b,age) for s in self.series]
+                return sum(values) if values and all(v is not None for v in values) else None
+        pv=GrossPV([_series(states.get(e,[]),"power") for e in pv_ids]) if pv_ids else None
+        solar={"status":"configure_pv_source"}
+        if pv:
+            night,day=solar_collect(indoor,outdoor,counters,pv,sun,start.timestamp(),end.timestamp(),step,age)
+            solar={**solar_estimate(night,day),"night_samples":len(night),"day_samples":len(day),"entities":pv_ids,"coverage":round(_coverage(pv,start.timestamp(),end.timestamp(),step,age),3)}
         from .dynamic_cop import estimate, shared_sources
         shared=shared_sources(resolved)
         dynamic=estimate(intervals) if not shared else {"status":"shared_meter_unresolved","scope":"aggregate"}
@@ -191,7 +222,7 @@ async def async_calibrate(hass, config):
                 known_cop=next(iter(cops))
                 result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "dynamic_cop":dynamic,"shared_heat_pump_sources":shared,"cooling_consistency":cooling_consistency(result,cooling),"passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "passive_solar":solar,"dynamic_cop":dynamic,"shared_heat_pump_sources":shared,"cooling_consistency":cooling_consistency(result,cooling),"passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
 
 

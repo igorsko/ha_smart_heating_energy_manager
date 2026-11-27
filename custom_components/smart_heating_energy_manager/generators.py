@@ -52,7 +52,7 @@ def capacity_status(data, demand):
     """Do not treat onboarding placeholders as actual heating capacity."""
     if not data.get("enabled",True):
         return "disabled"
-    if not data.get("technical_configured",True):
+    if not data.get("technical_configured",True) and data.get("_capacity_origin")!="declared":
         return "parameters_pending"
     capacity=data.get("capacity_kw")
     if not isinstance(capacity,(int,float)) or isinstance(capacity,bool) or not math.isfinite(capacity) or capacity<=0:

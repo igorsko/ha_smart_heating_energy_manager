@@ -152,3 +152,29 @@ def advisory_generator(data, identifier, outdoor=None):
         return Generator(identifier,g["kind"],eff,g["capacity_kw"],g.get("fuel_price",0),g.get("fuel_quantity",1),g.get("fuel_energy_kwh",1),g.get("enabled",True))
     except (KeyError,ValueError,TypeError):
         return None
+
+
+def heat_pump_live(data, read, outdoor, now):
+    """Instantaneous electrical input and conditional heat estimate, not a measured COP."""
+    from .thermal_zones import parse_curve, cop_at
+    if data.get("kind")!="heat_pump":
+        return None
+    cop,origin=cop_at(parse_curve(data.get("cop_curve","")),outdoor,data.get("efficiency",3) if ready(data) else 3.)
+    if origin=="manual" and not ready(data):
+        origin="estimated"
+    entity=data.get("power_entity")
+    state=read(entity) if entity else None
+    power=None
+    if state is not None and 0<=(now-state.last_updated).total_seconds()<=900:
+        factor={"W":1,"kW":1000,"MW":1000000}.get(state.attributes.get("unit_of_measurement"))
+        value=finite(state.state)
+        if factor is not None and value is not None and value>=0:
+            power=value*factor
+    control=read(data.get("control_entity")) if data.get("control_entity") else None
+    action=control.attributes.get("hvac_action") if control else None
+    heating=bool(control and control.state not in ("off","unknown","unavailable") and action=="heating")
+    # Without explicit heating action, the electrical input is still useful,
+    # but fan/standby/defrost cannot be distinguished from useful heat.
+    return {"power_w":power,"power_entity":entity,"cop":cop,"cop_source":origin,
+            "heat_kw":power*cop/1000 if power is not None and heating and cop is not None and cop>0 else None,
+            "heating_confirmed":heating}

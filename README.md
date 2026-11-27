@@ -95,3 +95,7 @@ Separate apparent cooling time constants and chronological validation for each m
 ### Calibration diagnostics (0.3.27)
 
 Cooling exclusions report nighttime evidence, each generator OFF evidence, temperature coverage and temperature differences. Zones may be excluded from the building reference while retaining independent monitoring. Existing zones remain included by default. Passive and energy-based time constants are compared diagnostically, without automatic parameter changes. Prospective temperature forecast verification remains conditional for indoor scenarios. / Diagnostica dei periodi scartati e scelta delle zone di riferimento.
+
+### Generator cost display (0.3.28)
+
+Fuel cards show useful-heat unit cost and estimated hourly burning cost, distinct from current consumption. Heat pump cards identify counter-average electrical input and hourly cost; technical details remain in diagnostics. / Riquadri economici semplificati; costi orari medi e in combustione distinti.

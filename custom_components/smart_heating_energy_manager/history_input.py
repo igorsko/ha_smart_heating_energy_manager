@@ -72,6 +72,21 @@ class RateSeries(Series):
         avg = self.average(start,end,max_age)
         return None if avg is None or avg < 0 else avg*(end-start)/3600
 
+class AlternativeSeries:
+    """Choose one valid source per interval; never add overlapping meters.
+
+    Primary source wins when available. Missing data remain missing.
+    """
+    def __init__(self, alternatives):
+        self.alternatives=tuple(alternatives)
+
+    def counter_delta(self,start,end,max_age):
+        for series in self.alternatives:
+            value=series.counter_delta(start,end,max_age)
+            if value is not None:
+                return value
+        return None
+
 def build_intervals(indoor,outdoor,counters,start,end,step_seconds=3600,max_age_seconds=7200):
     """Use complete intervals only; counters is a sequence of (kind, Series)."""
     if not all(isfinite(v) for v in (start,end,step_seconds,max_age_seconds)) or step_seconds <= 0 or max_age_seconds <= 0:

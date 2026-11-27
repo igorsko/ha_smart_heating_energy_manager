@@ -17,3 +17,7 @@ Initial setup requires no parameters. The panel discovers Home Assistant areas a
 ## Electrical calibration sources (0.3.10)
 
 Onecta heating-only cumulative counters are discovered across device records only within the same integration entry and appliance prefix. Explicit meter mappings take precedence. Vertigo heating-enable switches are thermostat requests, not measured element runtime; use a dedicated electrical power or energy sensor for calibration. No nominal wattage is assumed. Missing inputs remain unknown. / I contatori Daikin vengono individuati automaticamente; per Vertigo usare un misuratore elettrico dedicato. Lo stato di abilitazione del riscaldamento non misura il consumo.
+
+### Thermal holdout diagnostics
+
+Calibration reports chronological out-of-sample one-step temperature MAE, RMSE, bias and persistence baseline MAE using historical measured inputs. At least 24 training and 12 valid holdout intervals are required. This diagnostic is not a live forecast validation or permission for automatic control. / La diagnostica confronta temperature ricostruite su dati storici esclusi dall'apprendimento; non abilita il controllo automatico.

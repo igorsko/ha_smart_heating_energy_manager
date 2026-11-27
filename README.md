@@ -107,3 +107,7 @@ Diagnostic COP estimates in 5 °C outdoor temperature bins use an independently 
 ### Passive solar gain learning (0.3.30)
 
 Diagnostic thermal gain per gross PV kWh from recorded production power and complete heating intervals. Fits an independent nighttime non-heat-pump thermal model before the daylight holdout; compares solar proxy against a zero-gain baseline. Missing or conflicting PV mappings are not interpreted as zero. Internal gains, shading, PV orientation and weather may confound the estimate. No automatic change to forecast or device control. / Apprendimento diagnostico degli apporti solari, con validazione cronologica e senza applicazione automatica.
+
+### Prospective forecast verification (0.3.31)
+
+Stores first-issued temperature scenarios and hourly gross PV predictions. Compares PV against configured production counter deltas, rejecting missing/stale endpoints and counter resets. Reports MAE, RMSE, bias and lead-time buckets; missing observations expire rather than becoming zero. Indoor scenarios remain conditional on actual generator operation. Heating energy and realized cost verification require matched actual dispatch, metering and tariffs and are not implemented. / Validazione prospettica di temperature e produzione FV, distinta dalla verifica dei consumi e costi effettivi.

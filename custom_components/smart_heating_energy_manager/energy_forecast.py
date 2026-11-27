@@ -63,15 +63,35 @@ class EnergyForecast(SensorEntity):
 
     async def _observe_forecasts(self,now=None):
         from .forecast_validation import observe,summarize
-        if not self._validation_store:
+        if not self._validation_store or not self.config.get("history_enabled",False):
             return
         async with self._validation_lock:
             reference,indoor,outdoor=self._validation_reference()
+            import copy
+            before=copy.deepcopy(self._validation_rows)
             self._validation_rows=observe(self._validation_rows,dt_util.utcnow(),reference,indoor,outdoor)
-            await self._validation_store.async_save(self._validation_rows)
-            self._forecast_attrs["forecast_validation"]=summarize(self._validation_rows,reference)
+            if before!=self._validation_rows:
+                await self._validation_store.async_save(self._validation_rows)
+            pv_ref,_=self._pv_reference()
+            self._forecast_attrs["forecast_validation"]=summarize(self._validation_rows,reference,pv_ref)
             self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}
             self.async_write_ha_state()
+
+    def _pv_reference(self):
+        from .forecast_validation import pv_identity
+        return pv_identity(self._live_attrs.get("energy_dashboard_sources",{}))
+
+    async def _verify_pv(self,now,reference,meters):
+        from .forecast_validation import observe_pv,timestamp
+        from .recorder_adapter import hourly_pv_actuals
+        targets={r["target"] for r in self._validation_rows if r.get("kind")=="pv_hour" and r.get("status")=="pending" and r.get("reference")==reference and (t:=timestamp(r.get("target"))) and timedelta(minutes=10)<=now-t<=timedelta(hours=6)}
+        actuals={}
+        if targets and meters:
+            try:
+                actuals=await hourly_pv_actuals(self.hass,meters,targets)
+            except Exception:
+                _LOGGER.exception("PV forecast verification history unavailable")
+        observe_pv(self._validation_rows,now,reference,actuals)
 
     def read(self,key,power=False):
         entity=self.config.get(key)
@@ -149,6 +169,7 @@ class EnergyForecast(SensorEntity):
         now=dt_util.utcnow()
         attrs["solar_forecast"]=[{"datetime":t,"pv_kwh":v} for t,v in solar.items() if now<=dt_util.parse_datetime(t)<now+timedelta(hours=24)]
         price=None
+        scenario_indoor=None
         status="configure_weather"
         weather=d.get("weather")
         if weather:
@@ -232,7 +253,8 @@ class EnergyForecast(SensorEntity):
                     return value if unit=="°C" else (value-32)*5/9 if unit=="°F" and value is not None else None
                 ids=ref["indoor_reference"]
                 indoor,count=average_temperature(ids,read_temperature)
-                attrs["thermal_prediction"]=simulate(thermal_hours,indoor if count==len(ids) else None,loss,capacity,d.get("forecast_target"),d.get("preheat_margin") or 0,now,d.get("solar_gain_factor") or 0)
+                scenario_indoor=indoor if ids and count==len(ids) else None
+                attrs["thermal_prediction"]=simulate(thermal_hours,scenario_indoor,loss,capacity,d.get("forecast_target"),d.get("preheat_margin") or 0,now,d.get("solar_gain_factor") or 0)
                 attrs["thermal_prediction"]["parameter_source"]=source
                 status="estimated" if attrs["plan"] else "configure_model" if hours else "forecast_unavailable"
             except Exception:
@@ -276,15 +298,16 @@ class EnergyForecast(SensorEntity):
             if "joint_plan" not in attrs:
                 attrs["joint_plan"]=optimize(attrs["plan"],attrs["solar_forecast"],base,price,self._live_attrs.get("dhw"),battery,now,settings.get("export_price"))
         from .forecast_validation import issue,observe,summarize
-        if self._validation_store:
+        if self._validation_store and d.get("history_enabled",False):
             async with self._validation_lock:
                 reference,indoor,outdoor=self._validation_reference()
                 issued=dt_util.utcnow()
                 self._validation_rows=observe(self._validation_rows,issued,reference,indoor,outdoor)
-                if d.get("history_enabled",False):
-                    issue(self._validation_rows,issued,reference,attrs["forecast"],attrs.get("thermal_prediction",{}),indoor)
+                pv_ref,meters=self._pv_reference()
+                await self._verify_pv(issued,pv_ref,meters)
+                issue(self._validation_rows,issued,reference,attrs["forecast"],attrs.get("thermal_prediction",{}),scenario_indoor,attrs["solar_forecast"],pv_ref)
                 await self._validation_store.async_save(self._validation_rows)
-                attrs["forecast_validation"]=summarize(self._validation_rows,reference)
+                attrs["forecast_validation"]=summarize(self._validation_rows,reference,pv_ref)
         self._attr_native_value=status
         self._forecast_attrs=attrs
         self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}

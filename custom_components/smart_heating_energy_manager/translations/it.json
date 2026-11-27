@@ -192,7 +192,9 @@
           "grid_export": "Potenza immessa in rete (positiva in esportazione)",
           "battery_soc": "Carica batteria (%)",
           "weather": "Previsioni meteo orarie",
-          "forecast_target": "Temperatura interna desiderata (°C)"
+          "forecast_target": "Temperatura interna desiderata (°C)",
+          "thermal_capacity": "Capacità termica manuale (kWh/K)",
+          "preheat_margin": "Incremento massimo scenario preriscaldamento (°C)"
         }
       },
       "dhw": {

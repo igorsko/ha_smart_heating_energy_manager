@@ -28,4 +28,17 @@ def average_temperature(ids,read):
 
 def reference_config(config,zones):
     indoor,outdoor=resolve(zones,config.get("indoor"),config.get("outdoor"))
-    return {**config,"indoor_reference":indoor,"outdoor_reference":outdoor}
+    references={}
+    groups={}
+    for key,z in zones.items():
+        entity=thermometer(z)
+        if is_outdoor(key,z,outdoor) or entity not in indoor:
+            continue
+        references["zone:"+key]={"name":z.get("name",key),"kind":"zone","entities":[entity]}
+        name=" ".join(str(z.get("thermal_group") or "").split())[:80]
+        if name:
+            item=groups.setdefault(name.casefold(),{"name":name,"kind":"group","entities":[]})
+            if entity not in item["entities"]:
+                item["entities"].append(entity)
+    references.update({"group:"+k:v for k,v in groups.items()})
+    return {**config,"indoor_reference":indoor,"outdoor_reference":outdoor,"cooling_references":references}

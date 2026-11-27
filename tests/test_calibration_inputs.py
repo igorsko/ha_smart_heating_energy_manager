@@ -72,3 +72,12 @@ class InputTests(unittest.TestCase):
         devices["r"]["power_entity"]="sensor.dedicated_power"
         _,report=m.calibration_inputs(devices,[entry],lambda _:None)
         self.assertTrue(report["r"]["usable"])
+
+    def test_daikin_vendor_counter_without_total_state_class(self):
+        control=N(entity_id="climate.unit_room_temperature",unique_id="control",device_id="a",platform="daikin_onecta",disabled_by=None,config_entry_id="one")
+        meter=N(entity_id="sensor.unit_heating_yearly_electrical_consumption",unique_id="meter",device_id="b",platform="daikin_onecta",disabled_by=None,config_entry_id="one")
+        state=N(state="10",attributes={"unit_of_measurement":"kWh","state_class":"measurement"})
+        resolved,report=m.calibration_inputs({"hp":{"kind":"heat_pump","technical_configured":False,"control_entity":control.entity_id}},[control,meter],lambda _:state)
+        self.assertEqual(resolved["hp"]["energy_entity"],meter.entity_id)
+        self.assertEqual(resolved["hp"]["off_only_entity"],control.entity_id)
+        self.assertEqual(report["hp"]["candidates"][0]["entity"],meter.entity_id)

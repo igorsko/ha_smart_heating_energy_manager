@@ -16,14 +16,14 @@ def calibration_inputs(devices, entries, read):
         siblings=[e for e in entries if control and control.device_id and e.device_id==control.device_id and e.platform==control.platform and not e.disabled_by]
         # Onecta can register ClimateControl sensors on another device record.
         # Require the exact appliance prefix and same integration config entry.
-        if control and control.platform=="daikin_onecta" and control.entity_id.startswith("climate.") and control.entity_id.endswith("_room_temperature"):
+        if control and control.platform in ("daikin_onecta","daikin") and control.entity_id.startswith("climate.") and control.entity_id.endswith("_room_temperature"):
             prefix=control.entity_id.split(".",1)[1].removesuffix("_room_temperature")+"_climatecontrol_"
             config_id=getattr(control,"config_entry_id",None)
             if config_id:
                 siblings=list({e.entity_id:e for e in siblings+[
                     e for e in entries if e.platform==control.platform
                     and getattr(e,"config_entry_id",None)==config_id and not e.disabled_by
-                    and e.entity_id.startswith("sensor."+prefix)]}.values())
+                    and (e.entity_id.startswith("sensor."+prefix) or e.entity_id.startswith("sensor."+prefix.removesuffix("climatecontrol_")))]}.values())
         def unique(suffixes, units, classes=()):
             matches=[]
             for e in siblings:
@@ -94,6 +94,12 @@ def calibration_inputs(devices, entries, read):
                     if len(matches)==1:
                         g["energy_entity"]=matches[0]
                         break
+            if g["kind"]=="heat_pump" and not g.get("energy_entity") and control and control.platform in ("daikin_onecta","daikin"):
+                for period in ("yearly","annual","monthly","weekly","daily"):
+                    candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("measurement",None))
+                    if candidate:
+                        g["energy_entity"]=candidate
+                        break
             if g["kind"]=="resistance":
                 from .onboarding import suggest_sensors
                 for field,value in suggest_sensors(siblings,read,"resistance").items():
@@ -114,6 +120,10 @@ def calibration_inputs(devices, entries, read):
         vertigo_request=bool(control and control.platform=="olimpia_vertigo" and g.get("state_entity")==control.entity_id)
         if vertigo_request:
             g.pop("manual_input_rate",None)
+        if control and control.entity_id.startswith("climate.") and g.get("kind") in ("heat_pump","resistance"):
+            g["off_only_entity"]=control.entity_id
+        elif vertigo_request and control.entity_id.startswith("switch.") and control.entity_id.endswith(("_riscaldamento","_heating")):
+            g["off_only_entity"]=control.entity_id
         runtime=bool(g.get("state_entity") and finite(g.get("manual_input_rate")) and g["manual_input_rate"]>0 and g.get("active_states") and g.get("inactive_states"))
         meter=bool(g.get("energy_entity") or g.get("power_entity"))
         if g.get("kind")=="fuel":
@@ -125,6 +135,6 @@ def calibration_inputs(devices, entries, read):
         # Complete manual configurations retain their existing runtime fallback.
         if ready(original) and not vertigo_request:
             usable=True
-        report[key]={"usable":usable,"provisional":not ready(original),"reason":None if usable else "missing_meter_or_confirmed_runtime" if g.get("kind")=="resistance" else "missing_energy_source","entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity") if g.get(k)}}
+        report[key]={"usable":usable,"provisional":not ready(original),"reason":None if usable else "missing_meter_or_confirmed_runtime" if g.get("kind")=="resistance" else "missing_energy_source","candidates":[{"entity":e.entity_id,"unit":s.attributes.get("unit_of_measurement"),"state_class":s.attributes.get("state_class")} for e in siblings if e.entity_id.startswith("sensor.") and (s:=read(e.entity_id)) and s.attributes.get("unit_of_measurement") in ("Wh","kWh","MWh","W","kW","MW")],"entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity","off_only_entity") if g.get(k)}}
         result[key]=g
     return result,report

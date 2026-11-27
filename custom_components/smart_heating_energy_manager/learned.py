@@ -27,4 +27,4 @@ def effective_loss(config,record):
     valid=current(record,config)
     if config.get("apply_learned",False) and valid:
         return valid["fit"]["loss_w_k"],"learned"
-    return config["h"],"manual"
+    return config.get("h"),"manual" if config.get("h") else "learning_pending"

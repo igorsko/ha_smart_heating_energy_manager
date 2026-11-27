@@ -3,25 +3,7 @@
     "step": {
       "user": {
         "title": "Gestione intelligente del riscaldamento",
-        "description": "Modalità consultiva. Prezzi in €/kWh; perdite, IVA e rendimento come frazioni. Attiva l'indice solo se coerente con il contratto.",
-        "data": {
-          "indoor": "Temperatura interna",
-          "outdoor": "Temperatura esterna",
-          "pun": "Sensore PUN o indice",
-          "use_index": "Utilizza indice",
-          "fixed": "Prezzo fisso tutto incluso",
-          "spread": "Spread fornitore",
-          "losses": "Frazione perdite di rete",
-          "variable": "Componenti variabili",
-          "tax": "Accise",
-          "vat": "Frazione IVA",
-          "h": "Dispersioni (W/K)",
-          "cop": "COP stimato",
-          "pellet_price": "Prezzo sacco pellet",
-          "pellet_mass": "Peso sacco (kg)",
-          "lhv": "Energia pellet (kWh/kg)",
-          "efficiency": "Rendimento stufa"
-        }
+        "description": "Installa Smart Heating. Le aree di Home Assistant saranno rilevate automaticamente; configura le associazioni dalla dashboard e dalle opzioni."
       }
     }
   },
@@ -36,7 +18,9 @@
           "building": "Abitazione e sensori",
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
-          "tariff": "Tariffa elettrica"
+          "tariff": "Tariffa elettrica",
+          "display": "Interfaccia",
+          "zones": "Zone termiche"
         }
       },
       "add_generator": {
@@ -166,11 +150,32 @@
           "tax": "Accise",
           "vat": "Frazione IVA"
         }
+      },
+      "display": {
+        "title": "Interfaccia",
+        "data": {
+          "show_panel": "Mostra Smart Heating nel menu laterale"
+        }
+      },
+      "zones": {
+        "title": "Seleziona area",
+        "data": {
+          "area": "Area Home Assistant"
+        }
+      },
+      "zone_details": {
+        "title": "Configura zona",
+        "description": "Associa termometro e fonti di riscaldamento a {area}.",
+        "data": {
+          "temperature": "Termometro",
+          "sources": "Fonti di riscaldamento"
+        }
       }
     },
     "error": {
       "invalid_generator": "Parametri del generatore non validi",
-      "no_discovered_entities": "Nessuna entità compatibile"
+      "no_discovered_entities": "Nessuna entità compatibile",
+      "no_areas": "Nessuna area configurata in Home Assistant"
     }
   }
 }

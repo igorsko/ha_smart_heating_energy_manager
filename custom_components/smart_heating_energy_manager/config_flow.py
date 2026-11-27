@@ -17,22 +17,8 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="Smart Heating Energy Manager", data=user_input)
-        number = lambda low, high: vol.All(vol.Coerce(float), vol.Range(min=low, max=high))
-        schema = vol.Schema({
-            vol.Required("indoor"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature")),
-            vol.Required("outdoor"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", device_class="temperature")),
-            vol.Optional("pun"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-            vol.Required("use_index", default=False): bool,
-            vol.Required("fixed", default=0.30): number(0, 10),
-            vol.Required("spread", default=0.0): number(0, 10),
-            vol.Required("losses", default=0.0): number(0, 1),
-            vol.Required("variable", default=0.0): number(0, 10),
-            vol.Required("tax", default=0.0): number(0, 10),
-            vol.Required("vat", default=0.0): number(0, 1),
-            vol.Required("h"): number(1, 10000),
-        })
-        return self.async_show_form(step_id="user", data_schema=schema)
+            return self.async_create_entry(title="Smart Heating Energy Manager",data={"history_enabled":True})
+        return self.async_show_form(step_id="user",data_schema=vol.Schema({}))
 
 class DeviceOptionsFlow(config_entries.OptionsFlow):
     """Manage optional devices without changing the installation's entity IDs."""
@@ -41,7 +27,39 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", {}))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "finish"])
+            "zones", "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "display", "finish"])
+
+    async def async_step_zones(self,user_input=None):
+        from .areas import discover_areas
+        areas=discover_areas(self.hass)
+        if user_input is not None:
+            self._area=user_input["area"]
+            return await self.async_step_zone_details()
+        return self.async_show_form(step_id="zones",data_schema=vol.Schema({
+            vol.Required("area"):vol.In({k:v["name"] for k,v in areas.items()})
+        }),errors={"base":"no_areas"} if not areas else {})
+
+    async def async_step_zone_details(self,user_input=None):
+        from .areas import discover_areas
+        area=discover_areas(self.hass).get(self._area)
+        if area is None:
+            return await self.async_step_zones()
+        zones=dict(self.options.get("zones",self.config_entry.data.get("zones",{})))
+        if user_input is not None:
+            zones[self._area]={"temperature":user_input.get("temperature"),
+                "sources":user_input.get("sources",[]),"confirmed":True}
+            self.options["zones"]=zones
+            return self._save()
+        old=zones.get(self._area,{})
+        candidates=area["temperature_candidates"]
+        temperature=old.get("temperature") if old.get("confirmed") else candidates[0] if len(candidates)==1 else None
+        sources=old.get("sources",[]) if old.get("confirmed") else area["source_candidates"]
+        return self.async_show_form(step_id="zone_details",description_placeholders={"area":area["name"]},data_schema=vol.Schema({
+            vol.Optional("temperature",description={"suggested_value":temperature} if temperature else {}):
+                selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("sources",description={"suggested_value":sources}):
+                selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"],multiple=True))
+        }))
 
     async def async_step_discover_winnet(self, user_input=None):
         from homeassistant.helpers import entity_registry as er
@@ -61,11 +79,13 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_tariff(self,user_input=None):
         if user_input is not None:
             self.options.update(user_input)
+            self.options["fixed"] = user_input.get("fixed")
             self.options["pun"] = user_input.get("pun","")
             return self._save()
         current = {**self.config_entry.data, **self.options}
-        fields = {"fixed":.30,"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
+        fields = {"spread":0.,"losses":0.,"variable":0.,"tax":0.,"vat":0.}
         schema = {vol.Required(k,default=current.get(k,v)):vol.All(vol.Coerce(float),vol.Range(min=0,max=1 if k in ("vat","losses") else 10)) for k,v in fields.items()}
+        schema[vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {})]=vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
         schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
         schema[vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         return self.async_show_form(step_id="tariff",data_schema=vol.Schema(schema))
@@ -148,16 +168,17 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_building(self, user_input=None):
         if user_input is not None:
-            reset = user_input.pop("reset_calibration",False)
-            if reset:
+            if user_input.pop("reset_calibration",False):
                 self.options["calibration_generation"] = self.options.get("calibration_generation",0)+1
             self.options.update(user_input)
+            for field in ("indoor","outdoor","h"):
+                self.options[field] = user_input.get(field)
             return self._save()
         current = {**self.config_entry.data, **self.options}
         schema = vol.Schema({
-            vol.Required("indoor",default=current["indoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-            vol.Required("outdoor",default=current["outdoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-            vol.Required("h",default=current["h"]): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
+            vol.Optional("indoor",description={"suggested_value":current["indoor"]} if current.get("indoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("outdoor",description={"suggested_value":current["outdoor"]} if current.get("outdoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("h",description={"suggested_value":current["h"]} if current.get("h") else {}): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
             vol.Required("apply_learned",default=current.get("apply_learned",False)): bool,
             vol.Required("calibration_locked",default=current.get("calibration_locked",False)): bool,
@@ -169,6 +190,14 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),
         })
         return self.async_show_form(step_id="building",data_schema=schema)
+
+    async def async_step_display(self, user_input=None):
+        if user_input is not None:
+            self.options.update(user_input)
+            return self._save()
+        return self.async_show_form(step_id="display",data_schema=vol.Schema({
+            vol.Required("show_panel",default=self.options.get("show_panel",True)):bool
+        }))
 
     async def async_step_finish(self, user_input=None):
         return self._save()

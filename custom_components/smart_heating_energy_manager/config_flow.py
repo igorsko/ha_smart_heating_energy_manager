@@ -45,21 +45,27 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         if area is None:
             return await self.async_step_zones()
         zones=dict(self.options.get("zones",self.config_entry.data.get("zones",{})))
+        from .temperature_zones import is_outdoor
+        old=zones.get(self._area,{})
+        outdoor=is_outdoor(self._area,{**area,**old},self.options.get("outdoor",self.config_entry.data.get("outdoor")))
         if user_input is not None:
             zones[self._area]={**zones.get(self._area,{}),"temperature":user_input.get("temperature"),
-                "sources":user_input.get("sources",[]),"confirmed":True}
+                "sources":[] if outdoor else user_input.get("sources",[]),"confirmed":True}
             self.options["zones"]=zones
             return self._save()
         old=zones.get(self._area,{})
         candidates=area["temperature_candidates"]
         temperature=old.get("temperature") if old.get("confirmed") else candidates[0] if len(candidates)==1 else None
         sources=old.get("sources",[]) if old.get("confirmed") else area["source_candidates"]
-        return self.async_show_form(step_id="zone_details",description_placeholders={"area":area["name"]},data_schema=vol.Schema({
+        fields={
             vol.Optional("temperature",description={"suggested_value":temperature} if temperature else {}):
                 selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Optional("sources",description={"suggested_value":sources}):
                 selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"],multiple=True))
-        }))
+        }
+        if outdoor:
+            fields={k:v for k,v in fields.items() if k.schema!="sources"}
+        return self.async_show_form(step_id="zone_details",description_placeholders={"area":area["name"]},data_schema=vol.Schema(fields))
 
     async def async_step_zone_thermal(self,user_input=None):
         from .areas import discover_areas

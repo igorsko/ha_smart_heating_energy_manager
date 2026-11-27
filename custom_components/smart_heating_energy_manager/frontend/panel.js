@@ -36,8 +36,9 @@ class SmartHeatingPanel extends HTMLElement {
     const card=(title,value)=>'<article><small>'+html(title)+'</small><strong>'+html(value)+'</strong></article>';
     const installations=this._panel.config?.installations||[];
     const sections=installations.map(e=>{
-      const ids=e.entities||{}, diag=state(ids.calibration)?.attributes||{}, fit=diag.fit||{};
-      const ranked=state(ids.recommended_source)?.attributes?.candidates||[];
+      const ids=e.entities||{}, diag=state(ids.calibration)?.attributes||{}, fit=diag.fit||diag.last_valid?.fit||{};
+      const advisory=state(ids.recommended_source)?.attributes||{};
+      const ranked=advisory.candidates||[];
       const costs=new Map(ranked.map(x=>[x.id,x.cost]));
       const rows=(e.generators||[]).map(g=>'<tr><td>'+html(g.name)+'</td><td>'+html(val(g.state_entity))+'</td><td>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</td></tr>').join("");
       const overview='<div class="grid">'+card(tr("Temperatura interna","Indoor temperature"),val(e.indoor))+card(tr("Temperatura esterna","Outdoor temperature"),val(e.outdoor))+card(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand))+card(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source))+card(tr("Prezzo elettricità","Electricity price"),val(ids.electricity_price))+'</div>';
@@ -47,8 +48,10 @@ class SmartHeatingPanel extends HTMLElement {
       const admin=this._hass.user?.is_admin;
       const names=ids=>ids.map(id=>html(state(id)?.attributes?.friendly_name||id)).join(", ");
       const zoneCards=(entries)=>entries.map(([area,z])=>{
+        const model=advisory.zones?.[area]||{};
+        const thermal=(model.target_c!=null?`<p>${tr("Obiettivo","Target")}: ${html(model.target_c)} °C</p>`:"")+(model.heat_demand_kw!=null?`<p>${tr("Dispersione stimata","Estimated heat loss")}: ${html(Number(model.heat_demand_kw).toFixed(2))} kW</p>`:"");
         const thermometer=z.temperature||(!z.confirmed&&z.temperature_candidates?.length===1?z.temperature_candidates[0]:null);
-        return '<article><h2>'+html(z.name)+'</h2><p>'+html(z.confirmed?tr("Configurata","Configured"):tr("Da confermare","Needs confirmation"))+'</p><strong>'+html(val(thermometer))+'</strong><p>'+tr("Termometro associato: ","Assigned thermometer: ")+(z.temperature?names([z.temperature]):"—")+'</p><p>'+tr("Termometri rilevati: ","Detected thermometers: ")+(names(z.temperature_candidates||[])||"—")+'</p><p>'+tr("Fonti di riscaldamento: ","Heating sources: ")+(names(z.confirmed?(z.sources||[]):(z.source_candidates||[]))||"—")+'</p>'+(admin?'<button data-entry="'+html(e.id)+'" data-area="'+html(area)+'">'+tr("Configura zona","Configure zone")+'</button>':'')+'</article>';
+        return '<article><h2>'+html(z.name)+'</h2><p>'+html(z.confirmed?tr("Configurata","Configured"):tr("Da confermare","Needs confirmation"))+'</p><strong>'+html(val(thermometer))+'</strong>'+thermal+'<p>'+tr("Termometro associato: ","Assigned thermometer: ")+(z.temperature?names([z.temperature]):"—")+'</p><p>'+tr("Termometri rilevati: ","Detected thermometers: ")+(names(z.temperature_candidates||[])||"—")+'</p><p>'+tr("Fonti di riscaldamento: ","Heating sources: ")+(names(z.confirmed?(z.sources||[]):(z.source_candidates||[]))||"—")+'</p>'+(admin?'<button data-entry="'+html(e.id)+'" data-area="'+html(area)+'">'+tr("Configura zona","Configure zone")+'</button>':'')+'</article>';
       }).join("");
       const visible=allZones.filter(([,z])=>z.temperature||(!z.confirmed&&z.temperature_candidates?.length));
       const zones='<article><h2>'+tr("Zone termiche","Heating zones")+'</h2><div class="grid">'+zoneCards(visible)+'</div>'+(visible.length?"":'<p>'+tr("Nessuna zona con termometro","No zones with thermometer")+'</p>')+'</article>';

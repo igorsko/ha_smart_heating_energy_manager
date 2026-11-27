@@ -30,7 +30,7 @@
           "kind": "Type",
           "control_entity": "Heating entity"
         },
-        "description": "Start without technical ratings. Economic calculations require verified parameters in advanced settings."
+        "description": "Start without technical ratings. Economic comparisons may use provisional estimates in advanced settings."
       },
       "edit_details": {
         "title": "Edit generator",
@@ -146,8 +146,7 @@
           "history_days": "History days",
           "history_interval_minutes": "Analysis interval (minutes)",
           "history_max_age_hours": "Maximum sample age (hours)",
-          "history_min_coverage": "Minimum history coverage (fraction)",
-          "apply_learned": "Use learned heat loss",
+          "apply_learned": "Use validated learned thermal model",
           "calibration_locked": "Lock calibration updates",
           "reset_calibration": "Invalidate previous calibration"
         },
@@ -207,7 +206,7 @@
       },
       "joint_plan": {
         "title": "Joint energy planning",
-        "description": "Advisory simulation at constant prices. Enter household load excluding heating and DHW. No device commands.",
+        "description": "Advisory simulation using hourly tariffs where available. Enter household base load excluding heating and DHW. No device commands.",
         "data": {
           "enabled": "Enable simulation",
           "base_kw": "Average household base load (kW)",

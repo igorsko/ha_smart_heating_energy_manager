@@ -11,7 +11,7 @@ from .thermal_zones import parse_curve, cop_at
 from .learned import effective_loss
 from .model import electricity_price
 from .areas import discover_areas, zone_view
-from .temperature_zones import resolve
+from .temperature_zones import reference_config
 
 _LOGGER=logging.getLogger(__name__)
 DOMAIN="smart_heating_energy_manager"
@@ -68,10 +68,8 @@ class EnergyForecast(SensorEntity):
                     hours.append({"datetime":stamp.isoformat(),"temperature_c":t})
                 hours=sorted(hours,key=lambda x:x["datetime"])[:24]
                 attrs["forecast"]=hours
-                loss,source=effective_loss(d,self.hass.data[DOMAIN][self.entry_id]["learned"])
-                inside,outside=resolve(zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor")),d.get("indoor"),d.get("outdoor"))
-                if source=="learned" and (inside!=[d.get("indoor")] or outside!=d.get("outdoor")):
-                    loss=d.get("h")
+                ref=reference_config(d,zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor")))
+                loss,source=effective_loss(ref,self.hass.data[DOMAIN][self.entry_id]["learned"])
                 index=self.hass.states.get(d.get("pun","")) if d.get("use_index") and d.get("pun") else None
                 if index and dt_util.utcnow()-index.last_updated>timedelta(hours=d.get("index_max_age_hours",36)):
                     index=None

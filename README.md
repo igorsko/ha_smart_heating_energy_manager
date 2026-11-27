@@ -103,3 +103,7 @@ Fuel cards show useful-heat unit cost and estimated hourly burning cost, distinc
 ### Aggregate dynamic COP (0.3.29)
 
 Diagnostic COP estimates in 5 °C outdoor temperature bins use an independently fitted non-heat-pump building model and chronological holdout, compared against a constant COP. No extrapolation across gaps or outside the supported range. Shared meter entity identifiers are flagged; this does not establish physical multisplit topology or outdoor unit rated capacity. Learned curves are not automatically applied to individual heads. / Curva COP aggregata diagnostica e rilevamento di contatori condivisi, senza attribuzione automatica ai singoli split.
+
+### Passive solar gain learning (0.3.30)
+
+Diagnostic thermal gain per gross PV kWh from recorded production power and complete heating intervals. Fits an independent nighttime non-heat-pump thermal model before the daylight holdout; compares solar proxy against a zero-gain baseline. Missing or conflicting PV mappings are not interpreted as zero. Internal gains, shading, PV orientation and weather may confound the estimate. No automatic change to forecast or device control. / Apprendimento diagnostico degli apporti solari, con validazione cronologica e senza applicazione automatica.

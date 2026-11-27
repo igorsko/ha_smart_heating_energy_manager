@@ -75,3 +75,7 @@ Diagnostics show associated registry entities, including disabled and unavailabl
 ### Diagnostic export (0.3.22)
 
 Open Diagnostics and select Export diagnostics JSON or Copy diagnostics. The report includes generator mappings, deduplicated entity readings with explicitly selected attributes, live estimates and calibration summaries. It does not serialize credentials or arbitrary configuration. Review entity names and operating data before sharing. / Esporta o copia la diagnostica JSON dalla plancia; controlla i dati prima di condividerli.
+
+### Data readiness (0.3.23)
+
+The dashboard and export select the newest timestamped advisory snapshot. Exact scoped Onecta heating counter identities remain discoverable before cloud state publication; historical values still require valid units. Recent counter estimates carry an observation timestamp and the cache is invalidated when meter mappings change. Diagnostic exports omit network identity and credential-named entities and include historical coverage by generator. / La diagnostica distingue aggiornamento del modello, copertura storica e letture correnti.

@@ -96,3 +96,16 @@ def summarize(rows, reference, pv_reference=None):
             if group:
                 metric["lead_hours"][f"{lo}-{hi}"]={"samples":len(group),"mae":sum(map(abs,group))/len(group)}
     return result
+
+def pv_identity(sources):
+    """Bind comparison to explicitly configured production counters and providers."""
+    import hashlib
+    import json
+    solar=sources.get("solar",[])
+    meters=[s.get("stat_energy_from") for s in solar]
+    if not meters or any(not isinstance(e,str) or not e.startswith("sensor.") for e in meters) or len(set(meters))!=len(meters):
+        return None,[]
+    providers=sorted({i for s in solar for i in (s.get("config_entry_solar_forecast") or [])})
+    if not providers:
+        return None,[]
+    return hashlib.sha256(json.dumps([sorted(meters),providers]).encode()).hexdigest(),sorted(meters)

@@ -16,7 +16,8 @@ def resolve(zones, indoor=None, outdoor=None):
     candidates=set(exterior)-{None}
     outside=outdoor or (next(iter(candidates)) if len(candidates)==1 else None)
     excluded=set(exterior)|{outside,outdoor,None}
-    inside=sorted({thermometer(z) for k,z in zones.items() if not is_outdoor(k,z,outdoor)}-excluded)
+    inside=sorted({thermometer(z) for k,z in zones.items() if not is_outdoor(k,z,outdoor) and z.get("include_in_reference",True)}-excluded)
+    excluded.update(thermometer(z) for z in zones.values() if not z.get("include_in_reference",True))
     if not inside and indoor not in excluded:
         inside=[indoor]
     return inside,outside
@@ -32,7 +33,7 @@ def reference_config(config,zones):
     groups={}
     for key,z in zones.items():
         entity=thermometer(z)
-        if is_outdoor(key,z,outdoor) or entity not in indoor:
+        if is_outdoor(key,z,outdoor) or not entity or entity==outdoor:
             continue
         references["zone:"+key]={"name":z.get("name",key),"kind":"zone","entities":[entity]}
         name=" ".join(str(z.get("thermal_group") or "").split())[:80]

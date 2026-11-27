@@ -19,3 +19,9 @@ class TemperatureTests(unittest.TestCase):
         self.assertEqual(refs["zone:c"]["entities"],["sensor.c"])
         self.assertEqual(refs["group:open space"]["entities"],["sensor.a","sensor.c"])
         self.assertNotIn("zone:d",refs)
+
+    def test_excluded_zone_still_monitored(self):
+        zones={"a":{"name":"Living","temperature":"sensor.a"},"b":{"name":"Cellar","temperature":"sensor.b","include_in_reference":False}}
+        config=m.reference_config({"outdoor":"sensor.out"},zones)
+        self.assertEqual(config["indoor_reference"],["sensor.a"])
+        self.assertEqual(config["cooling_references"]["zone:b"]["entities"],["sensor.b"])

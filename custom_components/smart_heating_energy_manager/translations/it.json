@@ -15,69 +15,33 @@
           "add_generator": "Aggiungi generatore",
           "edit_generator": "Modifica generatore",
           "remove_generator": "Rimuovi generatore",
-          "building": "Abitazione e sensori",
+          "building": "Temperature di riferimento",
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
           "tariff": "Tariffa elettrica",
           "display": "Interfaccia",
-          "zones": "Zone termiche"
+          "zones": "Zone termiche",
+          "advanced_generator": "Parametri tecnici dei generatori",
+          "advanced_settings": "Calibrazione e impostazioni avanzate"
         }
       },
       "add_generator": {
         "title": "Aggiungi generatore",
         "data": {
-          "name": "Nome",
+          "name": "Nome (facoltativo se scegli un dispositivo)",
           "kind": "Tipologia",
-          "efficiency": "COP o rendimento (frazione)",
-          "capacity_kw": "Potenza termica (kW)",
-          "fuel_price": "Prezzo combustibile",
-          "fuel_quantity": "Quantità acquistata",
-          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
-          "enabled": "Abilitato",
-          "control_entity": "Entità di comando (solo associazione)",
-          "state_entity": "Entità di stato",
-          "energy_entity": "Contatore energia",
-          "power_entity": "Sensore potenza",
-          "temperature_entity": "Sensore temperatura",
-          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
-          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
-          "active_states": "Stati di erogazione effettiva (separati da virgola)",
-          "inactive_states": "Stati senza erogazione (separati da virgola)",
-          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
-          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
-          "level_entity": "Entità livello di potenza",
-          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
-          "fuel_mass_estimated": "Il contatore di massa è una stima",
-          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
-        }
+          "control_entity": "Dispositivo di riscaldamento"
+        },
+        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
       },
       "edit_details": {
         "title": "Modifica generatore",
         "data": {
-          "name": "Nome",
+          "name": "Nome (facoltativo se scegli un dispositivo)",
           "kind": "Tipologia",
-          "efficiency": "COP o rendimento (frazione)",
-          "capacity_kw": "Potenza termica (kW)",
-          "fuel_price": "Prezzo combustibile",
-          "fuel_quantity": "Quantità acquistata",
-          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
-          "enabled": "Abilitato",
-          "control_entity": "Entità di comando (solo associazione)",
-          "state_entity": "Entità di stato",
-          "energy_entity": "Contatore energia",
-          "power_entity": "Sensore potenza",
-          "temperature_entity": "Sensore temperatura",
-          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
-          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
-          "active_states": "Stati di erogazione effettiva (separati da virgola)",
-          "inactive_states": "Stati senza erogazione (separati da virgola)",
-          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
-          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
-          "level_entity": "Entità livello di potenza",
-          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
-          "fuel_mass_estimated": "Il contatore di massa è una stima",
-          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
-        }
+          "control_entity": "Dispositivo di riscaldamento"
+        },
+        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
       },
       "edit_generator": {
         "data": {
@@ -90,19 +54,10 @@
         }
       },
       "building": {
+        "title": "Temperature di riferimento",
         "data": {
           "indoor": "Temperatura interna",
-          "outdoor": "Temperatura esterna",
-          "h": "Dispersioni (W/K)",
-          "index_max_age_hours": "Validità massima indice (ore)",
-          "history_enabled": "Abilita calibrazione storica sperimentale",
-          "history_days": "Giorni di storico",
-          "history_interval_minutes": "Intervallo di analisi (minuti)",
-          "history_max_age_hours": "Età massima campione (ore)",
-          "history_min_coverage": "Copertura minima storico (frazione)",
-          "apply_learned": "Usa dispersione termica appresa",
-          "calibration_locked": "Blocca aggiornamento calibrazione",
-          "reset_calibration": "Invalida calibrazione precedente"
+          "outdoor": "Temperatura esterna"
         }
       },
       "discover_winnet": {
@@ -114,30 +69,11 @@
       "confirm_discovery": {
         "title": "Verifica associazioni e parametri",
         "data": {
-          "name": "Nome",
+          "name": "Nome (facoltativo se scegli un dispositivo)",
           "kind": "Tipologia",
-          "efficiency": "COP o rendimento (frazione)",
-          "capacity_kw": "Potenza termica (kW)",
-          "fuel_price": "Prezzo combustibile",
-          "fuel_quantity": "Quantità acquistata",
-          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
-          "enabled": "Abilitato",
-          "control_entity": "Entità di comando (solo associazione)",
-          "state_entity": "Entità di stato",
-          "energy_entity": "Contatore energia",
-          "power_entity": "Sensore potenza",
-          "temperature_entity": "Sensore temperatura",
-          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
-          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
-          "active_states": "Stati di erogazione effettiva (separati da virgola)",
-          "inactive_states": "Stati senza erogazione (separati da virgola)",
-          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
-          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
-          "level_entity": "Entità livello di potenza",
-          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
-          "fuel_mass_estimated": "Il contatore di massa è una stima",
-          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
-        }
+          "control_entity": "Dispositivo di riscaldamento"
+        },
+        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
       },
       "tariff": {
         "data": {
@@ -170,12 +106,70 @@
           "temperature": "Termometro",
           "sources": "Fonti di riscaldamento"
         }
+      },
+      "advanced_details": {
+        "title": "Parametri tecnici del generatore",
+        "data": {
+          "name": "Nome",
+          "kind": "Tipologia",
+          "efficiency": "COP o rendimento (frazione)",
+          "capacity_kw": "Potenza termica (kW)",
+          "fuel_price": "Prezzo combustibile",
+          "fuel_quantity": "Quantità acquistata",
+          "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
+          "enabled": "Abilitato",
+          "control_entity": "Entità di comando (solo associazione)",
+          "state_entity": "Entità di stato",
+          "energy_entity": "Contatore energia",
+          "power_entity": "Sensore potenza",
+          "temperature_entity": "Sensore temperatura",
+          "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
+          "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
+          "active_states": "Stati di erogazione effettiva (separati da virgola)",
+          "inactive_states": "Stati senza erogazione (separati da virgola)",
+          "fuel_mass_unit": "Unità di massa del combustibile (coerente con prezzo ed energia per unità)",
+          "fuel_mass_entity": "Contatore cumulativo combustibile consumato",
+          "level_entity": "Entità livello di potenza",
+          "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
+          "fuel_mass_estimated": "Il contatore di massa è una stima",
+          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
+        }
+      },
+      "advanced_generator": {
+        "data": {
+          "generator": "Generatore"
+        },
+        "title": "Impostazioni avanzate generatore"
+      },
+      "advanced_settings": {
+        "data": {
+          "h": "Dispersioni (W/K)",
+          "index_max_age_hours": "Validità massima indice (ore)",
+          "history_enabled": "Abilita calibrazione storica sperimentale",
+          "history_days": "Giorni di storico",
+          "history_interval_minutes": "Intervallo di analisi (minuti)",
+          "history_max_age_hours": "Età massima campione (ore)",
+          "history_min_coverage": "Copertura minima storico (frazione)",
+          "apply_learned": "Usa dispersione termica appresa",
+          "calibration_locked": "Blocca aggiornamento calibrazione",
+          "reset_calibration": "Invalida calibrazione precedente"
+        },
+        "title": "Calibrazione e parametri avanzati"
       }
     },
     "error": {
       "invalid_generator": "Parametri del generatore non validi",
       "no_discovered_entities": "Nessuna entità compatibile",
       "no_areas": "Nessuna area configurata in Home Assistant"
+    }
+  },
+  "selector": {
+    "generator_kind": {
+      "options": {
+        "heat_pump": "Pompa di calore / climatizzatore",
+        "resistance": "Riscaldamento elettrico a resistenza",
+        "fuel": "Stufa o caldaia a combustibile"
+      }
     }
   }
 }

@@ -15,19 +15,12 @@
           "add_generator": "Aggiungi generatore",
           "edit_generator": "Modifica generatore",
           "remove_generator": "Rimuovi generatore",
-          "building": "Temperatura esterna",
+          "building": "Edificio e isolamento",
           "finish": "Salva",
           "discover_winnet": "Importa dispositivo WiNET",
           "tariff": "Tariffa elettrica",
-          "display": "Interfaccia",
           "zones": "Zone termiche",
-          "advanced_generator": "Parametri tecnici dei generatori",
-          "advanced_settings": "Calibrazione e impostazioni avanzate",
-          "advanced_tariff": "Componenti tariffarie avanzate",
-          "zone_thermal": "Parametri termici delle zone",
-          "energy_forecast": "Energia e previsioni",
-          "dhw": "Acqua calda sanitaria (ACS)",
-          "joint_plan": "Pianificazione energetica congiunta"
+          "advanced_menu": "Impostazioni avanzate"
         }
       },
       "add_generator": {
@@ -59,9 +52,11 @@
         }
       },
       "building": {
-        "title": "Temperatura esterna",
+        "title": "Edificio e isolamento",
         "data": {
-          "outdoor": "Temperatura esterna"
+          "outdoor": "Temperatura esterna",
+          "building_area": "Superficie riscaldata (m²)",
+          "building_profile": "Profilo dispersioni edificio (stima iniziale)"
         },
         "description": "La temperatura interna è calcolata dalla media dei termometri delle zone. Seleziona un termometro esterno indipendente solo se non è già individuato nella zona esterna."
       },
@@ -134,7 +129,8 @@
           "fuel_mass_estimated": "Il contatore di massa è una stima",
           "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)",
           "cop_curve": "Curva COP (temperatura esterna °C=COP, una riga per punto)"
-        }
+        },
+        "description": "Sono mostrati solo i parametri pertinenti alla tipologia selezionata. Per modificare il dispositivo usa il menu principale."
       },
       "advanced_generator": {
         "data": {
@@ -153,9 +149,7 @@
           "history_min_coverage": "Copertura minima storico (frazione)",
           "apply_learned": "Usa dispersione termica appresa",
           "calibration_locked": "Blocca aggiornamento calibrazione",
-          "reset_calibration": "Invalida calibrazione precedente",
-          "building_area": "Superficie riscaldata (m²)",
-          "building_profile": "Profilo dispersioni edificio (stima iniziale)"
+          "reset_calibration": "Invalida calibrazione precedente"
         },
         "title": "Calibrazione e parametri avanzati"
       },
@@ -226,6 +220,19 @@
           "efficiency": "Rendimento per direzione (0–1)",
           "base_home_power": "Potenza totale abitazione (storico)",
           "base_excluded_power": "Sensori potenza di tutti i generatori elettrici e ACS da sottrarre"
+        }
+      },
+      "advanced_menu": {
+        "title": "Impostazioni avanzate",
+        "menu_options": {
+          "advanced_generator": "Parametri tecnici dei generatori",
+          "zone_thermal": "Parametri termici delle zone",
+          "advanced_tariff": "Componenti tariffarie avanzate",
+          "energy_forecast": "Energia e previsioni",
+          "joint_plan": "Pianificazione energetica congiunta",
+          "dhw": "Acqua calda sanitaria (ACS)",
+          "advanced_settings": "Calibrazione e impostazioni avanzate",
+          "display": "Interfaccia"
         }
       }
     },

@@ -49,3 +49,18 @@ class BootstrapTests(unittest.TestCase):
         states.pop("sensor.unit_rated_heat_output")
         self.assertIsNone(m.advisory_generator(m.declared_capacity(d,entries,states.get),"hp"))
         self.assertEqual(m.declared_capacity({**d,"technical_configured":True},entries,states.get)["capacity_kw"],1)
+
+    def test_live_heat_pump_power_and_cop(self):
+        from datetime import datetime, timezone, timedelta
+        from types import SimpleNamespace as N
+        now=datetime.now(timezone.utc)
+        d={"kind":"heat_pump","technical_configured":False,"power_entity":"sensor.input","control_entity":"climate.unit"}
+        states={"sensor.input":N(state="0.58",attributes={"unit_of_measurement":"kW"},last_updated=now),"climate.unit":N(state="heat",attributes={"hvac_action":"heating"})}
+        row=m.heat_pump_live(d,states.get,7,now)
+        self.assertEqual(row["power_w"],580)
+        self.assertEqual(row["cop"],3)
+        self.assertEqual(row["cop_source"],"estimated")
+        self.assertAlmostEqual(row["heat_kw"],1.74)
+        states["climate.unit"].attributes={}
+        self.assertIsNone(m.heat_pump_live(d,states.get,7,now)["heat_kw"])
+        self.assertIsNone(m.heat_pump_live(d,states.get,7,now+timedelta(minutes=16))["power_w"])

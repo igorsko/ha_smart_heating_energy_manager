@@ -83,3 +83,7 @@ The dashboard and export select the newest timestamped advisory snapshot. Exact 
 ### Startup and historical coverage (0.3.24)
 
 Known WiNET cumulative pellet and Onecta heating counters are resolved before live state publication, with historical units still checked. Historical OFF intervals can be bounded by a subsequent recorded known activation, assuming Recorder captured state transitions; unknown observations and unbounded stale periods are not accepted. WiNET burning OFF alone is not proof of shutdown. Advisory sensors refresh after startup and source changes with a debounce. / Aggiornamento dopo l'avvio e variazioni dei sensori; recupero dei periodi di spegnimento storicamente delimitati.
+
+### Passive cooling (0.3.25)
+
+Independent apparent time constant from historical nighttime periods (Recorder sun.sun below_horizon), all generator OFF evidence, and two hours of settling. Fixed indoor sensor membership. Chronological holdout with a two-hour gap and persistence baseline; no model override. Internal gains, residual heat and wind can bias the estimate, and nighttime does not prove absence of other gains. / Raffreddamento naturale: stima diagnostica indipendente, senza modifica automatica di H o C.

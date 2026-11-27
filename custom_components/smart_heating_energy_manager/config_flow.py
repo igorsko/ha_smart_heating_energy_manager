@@ -329,6 +329,8 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="joint_plan",data_schema=vol.Schema({
             vol.Required("enabled",default=current.get("enabled",False)):bool,
             opt("base_kw"):numeric(0,50),
+            opt("base_home_power"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power")),
+            opt("base_excluded_power"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power",multiple=True)),
             opt("export_price"):numeric(0,10),
             vol.Required("use_battery",default=current.get("use_battery",False)):bool,
             opt("capacity"):numeric(.1,1000),

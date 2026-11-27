@@ -32,3 +32,20 @@ class EnergyImportTests(unittest.TestCase):
         data=m.snapshot(prefs,lambda _:SimpleNamespace(state="400",attributes={"unit_of_measurement":"W"}))
         self.assertEqual(data["grid_net_kw"],.4)
         self.assertEqual(data["export_kw"],0)
+
+    def test_discovery_distinguishes_production_and_consumption(self):
+        prefs={"energy_sources":[{"type":"solar","stat_energy_from":"sensor.example_total"}]}
+        states={k:SimpleNamespace(state=v,attributes={"unit_of_measurement":"W","device_class":"power"}) for k,v in [("sensor.example_production_ct_power","100"),("sensor.example_consumption_ct_power","678")]}
+        discovered=m.discover_power(prefs,states.get,lambda _:list(states))
+        data=m.snapshot(discovered,states.get)
+        self.assertAlmostEqual(data["pv_kw"],.1)
+        self.assertAlmostEqual(data["home_kw"],.678)
+        self.assertNotIn("stat_rate",prefs["energy_sources"][0])
+        self.assertIsNone(data["grid_net_kw"])
+    def test_ambiguous_and_overlapping_sources(self):
+        prefs={"energy_sources":[{"type":"solar","stat_energy_from":"sensor.total"}]}
+        states={k:SimpleNamespace(state="100",attributes={"unit_of_measurement":"W"}) for k in ["sensor.a_production_ct_power","sensor.b_pv_power"]}
+        data=m.snapshot(m.discover_power(prefs,states.get,lambda _:list(states)),states.get)
+        self.assertIsNone(data["pv_kw"])
+        prefs={"energy_sources":[{"type":"solar","stat_rate":"sensor.a"},{"type":"home","stat_rate":"sensor.a"}]}
+        self.assertIsNone(m.snapshot(prefs,lambda _:SimpleNamespace(state="100",attributes={"unit_of_measurement":"W"}))["pv_kw"])

@@ -21,3 +21,5 @@ Onecta heating-only cumulative counters are discovered across device records onl
 ### Thermal holdout diagnostics
 
 Calibration reports chronological out-of-sample one-step temperature MAE, RMSE, bias and persistence baseline MAE using historical measured inputs. At least 24 training and 12 valid holdout intervals are required. This diagnostic is not a live forecast validation or permission for automatic control. / La diagnostica confronta temperature ricostruite su dati storici esclusi dall'apprendimento; non abilita il controllo automatico.
+
+In 0.3.11 the panel displays historical validation errors and the persistence baseline, and heat-pump status distinguishes selected HVAC mode from reported activity. These are advisory diagnostics, not measured live forecast accuracy. / La plancia mostra gli errori di validazione storica e distingue la modalità Daikin dall'attività effettivamente comunicata.

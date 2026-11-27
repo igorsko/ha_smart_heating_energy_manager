@@ -246,9 +246,9 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                     raise ValueError("COP curve requires heat pump")
                 if rates and (user_input["kind"]!="fuel" or not effective.get("level_entity") or not effective.get("state_entity") or effective["level_entity"]==effective["state_entity"]):
                     raise ValueError("Level rates require distinct state and level sensors")
-                if not user_input["name"].strip():
+                if not old["name"].strip():
                     raise ValueError("Empty name")
-            except ValueError:
+            except (ValueError, TypeError, KeyError):
                 errors["base"] = "invalid_generator"
             else:
                 self.devices[key] = {**user_input, "technical_configured": bool(old.get("technical_configured",True) or submitted.get("confirm_parameters"))}
@@ -260,8 +260,6 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             return vol.Optional(key, description={"suggested_value": defaults[key]} if defaults.get(key) else {})
         positive = vol.All(vol.Coerce(float), vol.Range(min=.001))
         fields = {
-            required("name", ""): str,
-            required("kind", "heat_pump"): vol.In(["heat_pump","resistance","fuel"]),
             required("efficiency", 1.0): positive,
             required("cop_curve", ""): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
             required("capacity_kw", 1.0): positive,
@@ -279,17 +277,15 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             optional("level_entity"): selector.EntitySelector(),
             required("active_states", ""): str,
             required("inactive_states", ""): str,
-            optional("control_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"])),
             optional("state_entity"): selector.EntitySelector(),
             optional("energy_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("power_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-            optional("temperature_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
         }
         schema_fields={k:v for k,v in fields.items() if k.schema in visible}
         if not old.get("technical_configured",True):
             schema_fields[vol.Required("confirm_parameters",default=False)]=bool
         schema=vol.Schema(schema_fields)
-        return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
+        return self.async_show_form(step_id=step,data_schema=schema,errors=errors,description_placeholders={"automatic_entities":", ".join(str(v) for k,v in automatic.items() if k in ENTITY_FIELDS and v and not old.get(k)) or "—","alternative_entities":", ".join(automatic.get("energy_alternatives",[])) or "—"})
 
     async def async_step_building(self,user_input=None):
         if user_input is not None:

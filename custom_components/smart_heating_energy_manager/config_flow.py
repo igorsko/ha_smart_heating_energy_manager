@@ -193,8 +193,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                 name=user_input.get("name","").strip() or (state.name if state else entity)
                 if not name:
                     raise ValueError("name")
+                if entity and any(k!=key and g.get("control_entity")==entity for k,g in self.devices.items()):
+                    raise ValueError("Duplicate generator device")
                 data=merge_basic(old,user_input,name)
-                if record and record.device_id and (not old.get("control_entity") or old.get("control_entity")==entity):
+                if record and record.device_id:
                     from .onboarding import suggest_sensors
                     siblings=[e for e in registry.entities.values() if e.device_id==record.device_id and not e.disabled_by]
                     found=suggest_sensors(siblings,self.hass.states.get,data["kind"])

@@ -27,7 +27,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "advanced_settings", "display", "finish"])
+            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -46,7 +46,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             return await self.async_step_zones()
         zones=dict(self.options.get("zones",self.config_entry.data.get("zones",{})))
         if user_input is not None:
-            zones[self._area]={"temperature":user_input.get("temperature"),
+            zones[self._area]={**zones.get(self._area,{}),"temperature":user_input.get("temperature"),
                 "sources":user_input.get("sources",[]),"confirmed":True}
             self.options["zones"]=zones
             return self._save()
@@ -59,6 +59,30 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                 selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Optional("sources",description={"suggested_value":sources}):
                 selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"],multiple=True))
+        }))
+
+    async def async_step_zone_thermal(self,user_input=None):
+        from .areas import discover_areas
+        areas=discover_areas(self.hass)
+        if user_input is not None:
+            self._thermal_area=user_input["area"]
+            return await self.async_step_zone_thermal_details()
+        return self.async_show_form(step_id="zone_thermal",data_schema=vol.Schema({
+            vol.Required("area"):vol.In({k:v["name"] for k,v in areas.items()})
+        }),errors={"base":"no_areas"} if not areas else {})
+
+    async def async_step_zone_thermal_details(self,user_input=None):
+        zones=dict(self.options.get("zones",self.config_entry.data.get("zones",{})))
+        old=zones.get(self._thermal_area,{})
+        if user_input is not None:
+            zones[self._thermal_area]={**old,"target_c":user_input.get("target_c"),"loss_w_k":user_input.get("loss_w_k")}
+            self.options["zones"]=zones
+            return self._save()
+        def optional(key):
+            return vol.Optional(key,description={"suggested_value":old[key]} if old.get(key) is not None else {})
+        return self.async_show_form(step_id="zone_thermal_details",data_schema=vol.Schema({
+            optional("target_c"):vol.All(vol.Coerce(float),vol.Range(min=5,max=35)),
+            optional("loss_w_k"):vol.All(vol.Coerce(float),vol.Range(min=1,max=10000))
         }))
 
     async def async_step_discover_winnet(self, user_input=None):
@@ -180,6 +204,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                           user_input["fuel_quantity"], user_input["fuel_energy_kwh"])
                 from .fuel import parse_rates
                 rates=parse_rates(user_input.get("level_rates",""))
+                from .thermal_zones import parse_curve
+                curve=parse_curve(user_input.get("cop_curve",""))
+                if curve and user_input["kind"]!="heat_pump":
+                    raise ValueError("COP curve requires heat pump")
                 if rates and (user_input["kind"]!="fuel" or not user_input.get("level_entity") or not user_input.get("state_entity") or user_input["level_entity"]==user_input["state_entity"]):
                     raise ValueError("Level rates require distinct state and level sensors")
                 if not user_input["name"].strip():
@@ -199,6 +227,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("name", ""): str,
             required("kind", "heat_pump"): vol.In(["heat_pump","resistance","fuel"]),
             required("efficiency", 1.0): positive,
+            required("cop_curve", ""): selector.TextSelector(selector.TextSelectorConfig(multiline=True)),
             required("capacity_kw", 1.0): positive,
             required("fuel_price", 0.0): vol.All(vol.Coerce(float),vol.Range(min=0)),
             required("fuel_quantity", 1.0): positive,

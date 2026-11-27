@@ -17,8 +17,10 @@ def optimize(heating,solar,base_kw,price,dhw=None,battery=None,now=None,export_p
     draw from grid. No grid charging, no control, no claim of global optimum.
     Hourly energy accounting does not establish instantaneous power feasibility.
     """
-    base,price,export=map(number,(base_kw,price,export_price))
-    if base is None or base<0 or price is None or price<0 or export is None or export<0:
+    base=number(base_kw) if not isinstance(base_kw,dict) else None
+    profile=base_kw if isinstance(base_kw,dict) else None
+    price,export=map(number,(price,export_price))
+    if (profile is None and (base is None or base<0)) or price is None or price<0 or export is None or export<0:
         return {"status":"configure_assumptions"}
     pv={}
     for row in solar:
@@ -44,6 +46,8 @@ def optimize(heating,solar,base_kw,price,dhw=None,battery=None,now=None,export_p
         return {"status":"missing_forecast"}
     if any(b[0]-a[0]!=timedelta(hours=1) for a,b in zip(rows,rows[1:])):
         return {"status":"incomplete_forecast"}
+    if profile is not None and any(number(profile.get(t.isoformat())) is None or number(profile.get(t.isoformat()))<0 for t,*_ in rows):
+        return {"status":"incomplete_load_profile"}
     battery=battery or {}
     cap,soc,reserve,charge,discharge,eff=map(number,(battery.get("capacity"),battery.get("soc"),battery.get("reserve"),battery.get("charge_kw"),battery.get("discharge_kw"),battery.get("efficiency")))
     use_battery=all(v is not None for v in (cap,soc,reserve,charge,discharge,eff)) and cap>0 and 0<=reserve<=soc<=100 and charge>0 and discharge>0 and 0<eff<=1
@@ -69,7 +73,8 @@ def optimize(heating,solar,base_kw,price,dhw=None,battery=None,now=None,export_p
         total=0.
         for i,(t,solar_energy,electric,fuel,name) in enumerate(rows):
             hot=0 if start is None or i<start else min(rated,max(0,heat-(i-start)*rated))
-            load=base+electric+hot
+            base_hour=number(profile[t.isoformat()]) if profile is not None else base
+            load=base_hour+electric+hot
             direct=min(solar_energy,load)
             surplus=solar_energy-direct
             deficit=load-direct
@@ -81,9 +86,9 @@ def optimize(heating,solar,base_kw,price,dhw=None,battery=None,now=None,export_p
             exported=surplus-into
             cost=grid*price-exported*export+fuel
             total+=cost
-            output.append({"datetime":t.isoformat(),"pv_kwh":round(solar_energy,3),"base_kwh":base,"heating_kwh":electric,"dhw_kwh":round(hot,3),"grid_kwh":round(grid,3),"export_kwh":round(exported,3),"battery_charge_kwh":round(into,3),"battery_discharge_kwh":round(out,3),"battery_soc":round(stored/cap*100,1) if use_battery else None,"cost":round(cost,4),"generator_name":name})
+            output.append({"datetime":t.isoformat(),"pv_kwh":round(solar_energy,3),"base_kwh":base_hour,"heating_kwh":electric,"dhw_kwh":round(hot,3),"grid_kwh":round(grid,3),"export_kwh":round(exported,3),"battery_charge_kwh":round(into,3),"battery_discharge_kwh":round(out,3),"battery_soc":round(stored/cap*100,1) if use_battery else None,"cost":round(cost,4),"generator_name":name})
         # Value terminal stored energy at import price (recoverable AC energy).
         objective=total-(stored-initial)*eff*price if use_battery else total
         return objective,total,output
     best=min(((*simulate(start),start) for start in starts),key=lambda x:(x[0],x[3] if x[3] is not None else -1))
-    return {"status":"estimated","rows":best[2],"net_cost":round(best[1],4),"objective":round(best[0],4),"dhw_start":rows[best[3]][0].isoformat() if best[3] is not None else None,"battery_mode":"solar_only" if use_battery else "none","assumptions":"constant_base_and_tariffs_fixed_heating_dispatch_hourly_balance"}
+    return {"status":"estimated","rows":best[2],"net_cost":round(best[1],4),"objective":round(best[0],4),"dhw_start":rows[best[3]][0].isoformat() if best[3] is not None else None,"battery_mode":"solar_only" if use_battery else "none","assumptions":"hourly_base_profile_constant_tariffs_fixed_heating_dispatch" if profile is not None else "constant_base_and_tariffs_fixed_heating_dispatch_hourly_balance"}

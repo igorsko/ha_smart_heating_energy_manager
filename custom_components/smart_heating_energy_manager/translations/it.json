@@ -221,7 +221,9 @@
           "reserve": "Riserva minima (%)",
           "charge_kw": "Potenza massima carica (kW)",
           "discharge_kw": "Potenza massima scarica (kW)",
-          "efficiency": "Rendimento per direzione (0–1)"
+          "efficiency": "Rendimento per direzione (0–1)",
+          "base_home_power": "Potenza totale abitazione (storico)",
+          "base_excluded_power": "Sensori potenza di tutti i generatori elettrici e ACS da sottrarre"
         }
       }
     },

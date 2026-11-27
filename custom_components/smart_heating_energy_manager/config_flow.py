@@ -27,7 +27,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_settings", "display", "finish"])
+            "zones", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -78,6 +78,17 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_tariff(self,user_input=None):
         if user_input is not None:
+            self.options.update({"fixed":user_input.get("fixed"),"use_index":user_input.get("use_index",False),"pun":user_input.get("pun","")})
+            return self._save()
+        current={**self.config_entry.data,**self.options}
+        return self.async_show_form(step_id="tariff",data_schema=vol.Schema({
+            vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {}):vol.All(vol.Coerce(float),vol.Range(min=0,max=10)),
+            vol.Required("use_index",default=current.get("use_index",False)):bool,
+            vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+        }))
+
+    async def async_step_advanced_tariff(self,user_input=None):
+        if user_input is not None:
             self.options.update(user_input)
             self.options["fixed"] = user_input.get("fixed")
             self.options["pun"] = user_input.get("pun","")
@@ -88,7 +99,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         schema[vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {})]=vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
         schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
         schema[vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
-        return self.async_show_form(step_id="tariff",data_schema=vol.Schema(schema))
+        return self.async_show_form(step_id="advanced_tariff",data_schema=vol.Schema(schema))
 
     async def async_step_add_generator(self, user_input=None):
         return await self._simple_generator("add_generator", user_input, str(uuid4()), {})

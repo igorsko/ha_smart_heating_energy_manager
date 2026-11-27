@@ -144,6 +144,8 @@ async def async_calibrate(hass, config):
             return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         quality["complete_intervals"]=len(intervals)
+        quality["generator_coverage"]={k:v["coverage"].get("combined",0) for k,v in diagnostics.items()}
+        quality["joint_temperature_intervals"]=sum(1 for i in range(quality["expected_intervals"]) if all(v is not None for v in (indoor.value_at(start.timestamp()+i*step,age),indoor.value_at(start.timestamp()+(i+1)*step,age),indoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age),outdoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age))))
         quality["complete_fraction"]=len(intervals)/quality["expected_intervals"] if quality["expected_intervals"] else 0
         known_cop=None
         result=fit(intervals)

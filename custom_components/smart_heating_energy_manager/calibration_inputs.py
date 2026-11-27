@@ -23,7 +23,7 @@ def calibration_inputs(devices, entries, read):
                 siblings=list({e.entity_id:e for e in siblings+[
                     e for e in entries if e.platform==control.platform
                     and getattr(e,"config_entry_id",None)==config_id and not e.disabled_by
-                    and (e.entity_id.startswith("sensor."+prefix) or e.entity_id.startswith("sensor."+prefix.removesuffix("climatecontrol_")))]}.values())
+                    and (e.entity_id.split(".",1)[0] in ("sensor","binary_sensor") and e.entity_id.split(".",1)[1].startswith(prefix.removesuffix("climatecontrol_")))]}.values())
         def unique(suffixes, units, classes=()):
             matches=[]
             for e in siblings:
@@ -107,6 +107,13 @@ def calibration_inputs(devices, entries, read):
                     if candidate and candidate!=g.get("energy_entity"):
                         alternatives.append(candidate)
                 g["energy_alternatives"]=alternatives
+            if g["kind"]=="heat_pump" and not g.get("state_entity"):
+                # Only explicit compressor/heating activity signals, not operation mode or power switch.
+                candidate=unique(("_heating_active","_heating_running","_compressor_running","_compressor_active","_hvac_action"),(None,))
+                if candidate:
+                    g["state_entity"]=candidate
+            if g["kind"]=="heat_pump":
+                g["_operating_candidates"]=[{"entity":e.entity_id,"state":str(s.state),"unit":s.attributes.get("unit_of_measurement")} for e in siblings if e.entity_id.startswith(("sensor.","binary_sensor.")) and (s:=read(e.entity_id)) and (s.attributes.get("unit_of_measurement") in ("W","kW","Wh","kWh") or any(t in e.entity_id.lower() for t in ("operation","compressor","heating","defrost","hvac_action","power")))]
             if g["kind"]=="heat_pump" and not g.get("power_entity"):
                 # Require explicit electrical input semantics, never thermal output.
                 candidate=unique(("_electrical_power","_electrical_input_power","_power_consumption","_input_power","_active_power","_power_absorption"),("W","kW","MW"))

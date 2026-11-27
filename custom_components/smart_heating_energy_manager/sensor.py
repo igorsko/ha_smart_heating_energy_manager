@@ -86,6 +86,8 @@ class HeatingSensor(SensorEntity):
             loss=d.get("h")
             model_source="manual" if loss else "learning_pending"
         zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in zones.items() if z.get("confirmed") and not z.get("outdoor")}
+        from .thermal_groups import groups
+        thermal_groups=groups(zones,self._temperature)
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
@@ -120,7 +122,7 @@ class HeatingSensor(SensorEntity):
             "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,
-            "zones": zone_models, "efficiencies": efficiencies,
+            "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}
 

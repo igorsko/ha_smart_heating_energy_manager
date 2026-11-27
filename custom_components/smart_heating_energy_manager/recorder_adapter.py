@@ -60,6 +60,7 @@ async def async_calibrate(hass, config):
     pending=[key for key,g in devices if not input_report[key]["usable"]]
     temp_ids=set(indoor_ids+[outdoor_id])
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
+    ids=list(dict.fromkeys(ids+[e for _,g in devices for e in g.get("energy_alternatives",[])]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -82,6 +83,8 @@ async def async_calibrate(hass, config):
                     entity=g.get(field)
                     if entity:
                         choices.append((field,entity,_series(states.get(entity,[]),kind,factor)))
+            for entity in g.get("energy_alternatives",[]):
+                choices.append(("energy_entity",entity,_series(states.get(entity,[]),"energy",factor)))
             if g["kind"]=="fuel":
                 entity=g.get("fuel_mass_entity")
                 if entity:
@@ -115,7 +118,7 @@ async def async_calibrate(hass, config):
             selected=[]
             for method,entity,series in choices:
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
-                report[method]=round(coverage,3)
+                report[method+":"+entity]=round(coverage,3)
                 if coverage>0 and entity not in used and entity not in temp_ids:
                     selected.append((method,entity,series))
             diagnostics[key]={"coverage":report,"source":None,"entity":None}

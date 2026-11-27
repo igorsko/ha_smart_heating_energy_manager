@@ -196,13 +196,6 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                 if entity and any(k!=key and g.get("control_entity")==entity for k,g in self.devices.items()):
                     raise ValueError("Duplicate generator device")
                 data=merge_basic(old,user_input,name)
-                if record and record.device_id:
-                    from .onboarding import suggest_sensors
-                    siblings=[e for e in registry.entities.values() if e.device_id==record.device_id and not e.disabled_by]
-                    found=suggest_sensors(siblings,self.hass.states.get,data["kind"])
-                    for field,value in found.items():
-                        if not data.get(field):
-                            data[field]=value
                 self.devices[key]=data
                 return self._save()
             except ValueError:
@@ -213,24 +206,35 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("kind",default=defaults.get("kind","heat_pump")):selector.SelectSelector(selector.SelectSelectorConfig(options=["heat_pump","resistance","fuel"],translation_key="generator_kind",mode=selector.SelectSelectorMode.DROPDOWN)),
             vol.Optional("name",description={"suggested_value":defaults["name"]} if defaults.get("name") else {}):str,
         })
-        return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
+        return self.async_show_form(step_id=step,data_schema=schema,errors=errors,description_placeholders={"automatic_entities":", ".join(f"{v}" for k,v in automatic.items() if k in ENTITY_FIELDS and v and not old.get(k)) or "—","alternative_entities":", ".join(automatic.get("energy_alternatives",[])) or "—"})
 
     async def _generator_form(self, step, user_input, key, old):
         errors = {}
         kind=old.get("kind","heat_pump")
-        from .config_fields import generator_fields
+        from .config_fields import generator_fields, mapping_preferences, ENTITY_FIELDS
+        from .calibration_inputs import calibration_inputs
+        from .bootstrap import declared_capacity, winnet_parameters
+        from homeassistant.helpers import entity_registry as er
+        entries=list(er.async_get(self.hass).entities.values())
+        read=self.hass.states.get
+        resolved,_=calibration_inputs({key:old},entries,read)
+        automatic=declared_capacity(winnet_parameters(resolved[key],entries,read),entries,read)
         visible=generator_fields(kind)
+        if kind=="resistance" and automatic.get("off_only_entity") and automatic.get("state_entity")==automatic.get("off_only_entity"):
+            visible=visible-{"manual_input_rate","active_states","inactive_states"}
+        if user_input is None:
+            self._generator_suggestions=automatic
+        else:
+            automatic=getattr(self,"_generator_suggestions",automatic)
         if user_input is not None:
             from .generators import Generator
             submitted=user_input
-            user_input={**old,**{k:v for k,v in submitted.items() if k in visible},"kind":kind}
+            user_input={**mapping_preferences(old,submitted,automatic,visible),**{k:v for k,v in submitted.items() if k in visible and k not in ENTITY_FIELDS},"kind":kind}
             for field in ("fuel_price","fuel_quantity","fuel_energy_kwh"):
                 if field not in visible:
                     user_input[field]=0.0 if field=="fuel_price" else 1.0
-            for field in ("energy_entity","power_entity","state_entity","fuel_rate_entity","fuel_mass_entity","level_entity","temperature_entity"):
-                if field in visible and field not in submitted:
-                    user_input[field]=None
             try:
+                effective={**automatic,**user_input}
                 Generator(key, user_input["kind"], user_input["efficiency"],
                           user_input["capacity_kw"], user_input["fuel_price"],
                           user_input["fuel_quantity"], user_input["fuel_energy_kwh"])
@@ -240,20 +244,20 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
                 curve=parse_curve(user_input.get("cop_curve","") if kind=="heat_pump" else "")
                 if curve and user_input["kind"]!="heat_pump":
                     raise ValueError("COP curve requires heat pump")
-                if rates and (user_input["kind"]!="fuel" or not user_input.get("level_entity") or not user_input.get("state_entity") or user_input["level_entity"]==user_input["state_entity"]):
+                if rates and (user_input["kind"]!="fuel" or not effective.get("level_entity") or not effective.get("state_entity") or effective["level_entity"]==effective["state_entity"]):
                     raise ValueError("Level rates require distinct state and level sensors")
                 if not user_input["name"].strip():
                     raise ValueError("Empty name")
             except ValueError:
                 errors["base"] = "invalid_generator"
             else:
-                self.devices[key] = {**old, **user_input, "technical_configured": True}
+                self.devices[key] = {**user_input, "technical_configured": bool(old.get("technical_configured",True) or submitted.get("confirm_parameters"))}
                 return self._save()
-        defaults = {**old, **(user_input or {})}
+        defaults = {**automatic, **(user_input or {})}
         def required(key, default):
             return vol.Required(key, default=defaults.get(key, default))
         def optional(key):
-            return vol.Optional(key, description={"suggested_value": defaults[key]} if key in defaults else {})
+            return vol.Optional(key, description={"suggested_value": defaults[key]} if defaults.get(key) else {})
         positive = vol.All(vol.Coerce(float), vol.Range(min=.001))
         fields = {
             required("name", ""): str,
@@ -277,11 +281,14 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             required("inactive_states", ""): str,
             optional("control_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"])),
             optional("state_entity"): selector.EntitySelector(),
-            optional("energy_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="energy")),
-            optional("power_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power")),
+            optional("energy_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+            optional("power_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
             optional("temperature_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
         }
-        schema=vol.Schema({k:v for k,v in fields.items() if k.schema in visible})
+        schema_fields={k:v for k,v in fields.items() if k.schema in visible}
+        if not old.get("technical_configured",True):
+            schema_fields[vol.Required("confirm_parameters",default=False)]=bool
+        schema=vol.Schema(schema_fields)
         return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
 
     async def async_step_building(self,user_input=None):

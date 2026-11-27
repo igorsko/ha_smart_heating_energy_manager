@@ -27,3 +27,7 @@ In 0.3.11 the panel displays historical validation errors and the persistence ba
 ### Provisional historical quality gate
 
 Learned parameters remain stored for diagnostics but are used through effective_loss only after opt-in and historical holdout validation: at least 24 training and 12 validation samples, MAE <= 0.50 °C, RMSE <= 0.75 °C, absolute bias <= 0.30 °C and MAE strictly below the persistence baseline. Older records without validation fall back to the manual or initial model. Thresholds are provisional, not proof of live forecast accuracy. / I parametri appresi vengono utilizzati solo dopo la verifica storica e il consenso configurato; i limiti sono provvisori.
+
+### Partial calibration and meter discovery (0.3.12)
+
+Vendor heating-period counters can be recognized even when their state class is measurement or absent, subject to appliance identity and explicit counter naming. Candidate units and state classes are exposed in diagnostics. Unmetered electric heating sources contribute zero only during recorded, freshness-limited explicit OFF intervals; enabled or unknown states invalidate the interval. Fuel sources are not inferred off this way. No actuator commands. / La calibrazione usa soltanto intervalli completi; i generatori elettrici senza misura possono contribuire zero solo durante intervalli di spegnimento documentato.

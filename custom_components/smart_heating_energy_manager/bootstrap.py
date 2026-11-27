@@ -67,7 +67,20 @@ def winnet_parameters(data, entries, read):
         g["_economic_entities"]["rate"]=rate_id
     return g
 
-def economic_costs(devices,electricity):
+def effective_cop(data,outdoor=None):
+    from .thermal_zones import parse_curve, cop_at
+    fallback=data.get('efficiency',3) if ready(data) else 3.
+    value,origin=cop_at(parse_curve(data.get('cop_curve','')),outdoor,fallback)
+    if origin=='configured_curve':
+        return value,origin
+    if ready(data):
+        return value,'manual'
+    if data.get('_learned_cop') is not None:
+        return data['_learned_cop'],'learned'
+    return value,'estimated'
+
+
+def economic_costs(devices,electricity,outdoor=None):
     result=[]
     for key,data in devices.items():
         if not data.get("enabled",True):
@@ -75,7 +88,7 @@ def economic_costs(devices,electricity):
         g,origin=economic_parameters(data)
         if not g:
             continue
-        eff=finite(g.get("efficiency"))
+        eff=finite(effective_cop(g,outdoor)[0] if g["kind"]=="heat_pump" else g.get("efficiency"))
         if eff is None or eff<=0:
             continue
         if g["kind"]=="fuel":
@@ -84,7 +97,7 @@ def economic_costs(devices,electricity):
         else:
             cost=electricity/eff if electricity is not None else None
         if cost is not None:
-            row={"id":key,"cost":cost,"source":g.get("_economic_origin",origin)}
+            row={"id":key,"cost":cost,"source":effective_cop(g,outdoor)[1] if g["kind"]=="heat_pump" else g.get("_economic_origin",origin)}
             if g.get("_economic_entities"):
                 row["entities"]=g["_economic_entities"]
                 row["parameters"]={k:g[k] for k in ("fuel_price","fuel_quantity","fuel_energy_kwh","efficiency")}
@@ -148,7 +161,7 @@ def advisory_generator(data, identifier, outdoor=None):
     try:
         eff=g["efficiency"]
         if g["kind"]=="heat_pump":
-            eff,_=cop_at(parse_curve(g.get("cop_curve","")),outdoor,eff)
+            eff,_=effective_cop(g,outdoor)
         return Generator(identifier,g["kind"],eff,g["capacity_kw"],g.get("fuel_price",0),g.get("fuel_quantity",1),g.get("fuel_energy_kwh",1),g.get("enabled",True))
     except (KeyError,ValueError,TypeError):
         return None
@@ -159,9 +172,7 @@ def heat_pump_live(data, read, outdoor, now, average=None, electricity=None):
     from .thermal_zones import parse_curve, cop_at
     if data.get("kind")!="heat_pump":
         return None
-    cop,origin=cop_at(parse_curve(data.get("cop_curve","")),outdoor,data.get("efficiency",3) if ready(data) else 3.)
-    if origin=="manual" and not ready(data):
-        origin="estimated"
+    cop,origin=effective_cop(data,outdoor)
     entity=data.get("power_entity")
     state=read(entity) if entity else None
     power=None

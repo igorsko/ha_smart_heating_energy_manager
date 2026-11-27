@@ -31,6 +31,9 @@ async def async_setup_entry(hass, entry):
         state["zone_api_registered"] = True
     store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.calibration")
     config = {**entry.data, **entry.options}
+    from .areas import discover_areas, zone_view
+    from .temperature_zones import reference_config
+    config=reference_config(config,zone_view(discover_areas(hass),config.get('zones',{}),config.get('outdoor')))
     saved = current(await store.async_load(), config)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"store":store,"learned":saved}
     await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])

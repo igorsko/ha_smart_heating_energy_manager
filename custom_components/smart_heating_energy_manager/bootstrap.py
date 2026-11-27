@@ -154,7 +154,7 @@ def advisory_generator(data, identifier, outdoor=None):
         return None
 
 
-def heat_pump_live(data, read, outdoor, now):
+def heat_pump_live(data, read, outdoor, now, average=None, electricity=None):
     """Instantaneous electrical input and conditional heat estimate, not a measured COP."""
     from .thermal_zones import parse_curve, cop_at
     if data.get("kind")!="heat_pump":
@@ -175,6 +175,37 @@ def heat_pump_live(data, read, outdoor, now):
     heating=bool(control and control.state not in ("off","unknown","unavailable") and action=="heating")
     # Without explicit heating action, the electrical input is still useful,
     # but fan/standby/defrost cannot be distinguished from useful heat.
-    return {"power_w":power,"power_entity":entity,"cop":cop,"cop_source":origin,
-            "heat_kw":power*cop/1000 if power is not None and heating and cop is not None and cop>0 else None,
+    source="sensor" if power is not None else "unavailable"
+    interval=None
+    if power is None and average:
+        power=average["power_w"]
+        entity=average["power_entity"]
+        interval=average["interval_minutes"]
+        source="counter_average"
+    return {"power_w":power,"power_entity":entity,"power_source":source,"interval_minutes":interval,"cop":cop,"cop_source":origin,
+            "heat_kw":power*cop/1000 if power is not None and heating and source=="sensor" and cop is not None and cop>0 else None,
+            "cost_per_hour":power*electricity/1000 if power is not None and electricity is not None else None,
             "heating_confirmed":heating}
+
+
+def fuel_live(data, read, now):
+    """Burning-rate estimate; never display a nominal burn rate as current use."""
+    if data.get("kind")!="fuel":
+        return None
+    entity=data.get("fuel_rate_entity") or data.get("_economic_entities",{}).get("rate")
+    state=read(entity) if entity else None
+    status=read(data.get("state_entity")) if data.get("state_entity") else None
+    active={s.strip() for s in data.get("active_states","").split(",") if s.strip()}
+    inactive={s.strip() for s in data.get("inactive_states","").split(",") if s.strip()}
+    rate=None
+    if status and status.state in inactive and status.state not in active:
+        rate=0.
+    elif status and status.state in active and status.state not in inactive and state and 0<=(now-state.last_updated).total_seconds()<=900:
+        if state.attributes.get("unit_of_measurement")=="kg/h":
+            rate=finite(state.state)
+            if rate is not None and rate<0:
+                rate=None
+    p,q,e,eff=map(finite,(data.get("fuel_price"),data.get("fuel_quantity"),data.get("fuel_energy_kwh"),data.get("efficiency")))
+    kg=data.get("fuel_mass_unit","kg")=="kg"
+    return {"rate_kg_h":rate,"rate_entity":entity,"cost_per_hour":rate*p/q if rate is not None and kg and p is not None and q and q>0 else None,
+            "heat_kw":rate*e*eff if rate is not None and kg and e and eff else None,"efficiency":eff,"fuel_energy_kwh":e}

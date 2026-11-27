@@ -122,7 +122,12 @@ class HeatingSensor(SensorEntity):
                           for k,v in d.get("generators",{}).items()}
         economic=economic_costs(economic_devices,price)
         _,initial_capacity=building_estimate(d)
-        self._attr_extra_state_attributes = {"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"mode": "advisory", "price_source": source,
+        from .history_quality import readiness
+        from .learned import current
+        valid=current(learned,ref) if model_source=="learned" else None
+        capacity=valid["fit"]["capacity_kwh_k"] if valid else d.get("thermal_capacity") or initial_capacity
+        quality=readiness(count,len(indoor_ids),outdoor,finite(loss),finite(capacity),price)
+        self._attr_extra_state_attributes = {"model_readiness":quality,"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"mode": "advisory", "price_source": source,
             "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,
             "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,
@@ -149,13 +154,28 @@ class CalibrationDiagnostic(SensorEntity):
         import asyncio
         from homeassistant.helpers.event import async_track_time_interval
         self._lock = asyncio.Lock()
+        runtime=self.hass.data["smart_heating_energy_manager"][self._entry_id]
+        runtime["calibrate_now"]=self.request_calibration
+        self.async_on_remove(lambda:runtime.pop("calibrate_now",None))
         self.async_on_remove(async_track_time_interval(self.hass, self._refresh, timedelta(days=1)))
         self.async_on_remove(self.hass.async_create_task(self._refresh()).cancel)
+
+    async def request_calibration(self):
+        if self._config.get("calibration_locked",False):
+            return "locked"
+        if not self._config.get("history_enabled",False):
+            return "disabled"
+        if self._lock.locked():
+            return "busy"
+        await self._refresh()
+        return self._attr_native_value
 
     async def _refresh(self, now=None):
         if self._lock.locked():
             return
         async with self._lock:
+            self._attr_native_value="running"
+            self.async_write_ha_state()
             try:
                 from .recorder_adapter import async_calibrate
                 runtime = self.hass.data["smart_heating_energy_manager"][self._entry_id]
@@ -169,6 +189,8 @@ class CalibrationDiagnostic(SensorEntity):
                     config=reference_config(self._config,zone_view(discover_areas(self.hass),self._config.get("zones",{}),self._config.get("outdoor")))
                     result = await async_calibrate(self.hass, config)
                     record = accepted(result,config)
+                    if result.get("status")=="estimated" and not record:
+                        result={**result,"status":"rejected_fit"}
                     if record:
                         await runtime['store'].async_save(record)
                         runtime['learned'] = record

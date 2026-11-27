@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 const html = (value) => String(value ?? "—").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 class SmartHeatingPanel extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; this._history={}; this._historyPending=new Set(); }
+  constructor() { super(); this.attachShadow({mode:"open"}); this._page="overview"; this._zones={}; this._editing=null; this._notice=""; this._history={}; this._historyPending=new Set(); this._calibrationPending=new Set(); this._calibrationResults={}; }
   set hass(value) { this._hass=value; if (!this._editing) this.render(); }
   set panel(value) { if (this._panel !== value) this._zones={}; this._panel=value; if (!this._editing) this.render(); }
   connectedCallback() { this.render(); }
@@ -25,6 +25,21 @@ class SmartHeatingPanel extends HTMLElement {
     } catch(err) {
       form.querySelectorAll("button").forEach(b=>b.disabled=false);
       form.querySelector(".error").textContent=[err.code,err.message].filter(Boolean).join(": ")||String(err);
+    }
+  }
+  async calibrateNow(entry) {
+    if(this._calibrationPending.has(entry)) return;
+    this._calibrationPending.add(entry);
+    delete this._calibrationResults[entry];
+    this.render();
+    try {
+      const result=await this._hass.callWS({type:"smart_heating_energy_manager/calibrate",entry_id:entry});
+      this._calibrationResults[entry]=result.status;
+    } catch(error) {
+      this._calibrationResults[entry]=error.message||String(error);
+    } finally {
+      this._calibrationPending.delete(entry);
+      if(this.isConnected&&!this._editing) this.render();
     }
   }
   async loadHistory(entry, ids) {
@@ -118,7 +133,15 @@ class SmartHeatingPanel extends HTMLElement {
       const generators='<article class="generators"><h2>'+icon("chart-bar")+tr("Confronto economico generatori","Economic generator comparison")+'</h2>'+(sorted.length?sorted.map((g,i)=>'<div class="rank '+(ranked[0]?.id===g.id?"best":"")+'"><span class="rank-no">'+(costs.has(g.id)?i+1:"—")+'</span><div class="rank-name"><b>'+html(g.name)+'</b><small>'+html(val(g.state_entity)+(origins.get(g.id)==="winnet_estimated"?" · "+tr("WiNET / stima","WiNET / estimate"):origins.get(g.id)==="estimated"?" · "+tr("Stima","Estimate"):""))+'</small></div><b>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</b></div>').join(""):html(tr("Nessun generatore configurato","No generators configured")))+fuelDetails+'</article>';
       const detail=(label,value)=>'<div class="detail"><span>'+html(label)+'</span><b>'+html(value)+'</b></div>';
       const calibrationInputs=Object.entries(diag.inputs||{}).map(([id,v])=>'<p>'+html((e.generators||[]).find(g=>g.id===id)?.name||id)+' · '+html(v.usable?tr("Sorgente individuata","Source identified"):tr("Sorgente mancante","Missing source"))+(v.provisional?' · '+html(tr("Parametri provvisori","Provisional parameters")):"")+'<small>'+html(Object.values(v.entities||{}).join(", "))+'</small></p>').join("");
-      const learning='<article class="learning"><h2>'+icon("vector-triangle")+tr("Modello termico","Thermal model")+'</h2>'+detail(tr("Dispersioni H","Heat loss H"),advisory.loss_w_k!=null?Number(advisory.loss_w_k).toFixed(1)+" W/K":"—")+detail(tr("Origine modello","Model source"),({estimated:tr("Stima iniziale","Initial estimate"),manual:tr("Configurato","Configured"),learned:tr("Appreso","Learned")})[advisory.thermal_model]||tr("Da configurare","Needs configuration"))+detail(tr("Inerzia C (stimata)","Capacity C (estimated)"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":advisory.initial_capacity_kwh_k!=null?Number(advisory.initial_capacity_kwh_k).toFixed(2)+" kWh/K ("+tr("stima","estimate")+")":"—")+detail(tr("Errore RMSE","RMSE error"),fit.rmse_kw!=null?Number(fit.rmse_kw).toFixed(2)+" kW":"—")+detail(tr("Campioni validi","Valid samples"),fit.samples??"—")+detail(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+calibrationInputs+'</article>';
+      const calibrationLabels={pending:tr("In attesa","Pending"),running:tr("Analisi in corso","Analyzing"),disabled:tr("Apprendimento disabilitato","Learning disabled"),locked:tr("Calibrazione bloccata","Calibration locked"),busy:tr("Analisi già in corso","Already running"),estimated:tr("Stima accettata","Estimate accepted"),rejected_fit:tr("Stima fuori dai limiti","Estimate rejected"),configure_temperature_sensors:tr("Associa i termometri interni ed esterno","Map indoor and outdoor thermometers"),no_generators:tr("Aggiungi generatori","Add generators"),configure_generator_parameters:tr("Mancano sorgenti energetiche o parametri","Missing energy sources or parameters"),configure_missing_energy_source:tr("Copertura storica dei generatori insufficiente","Insufficient generator history coverage"),insufficient_or_unidentifiable:tr("Campioni insufficienti o modello non identificabile","Insufficient samples or unidentifiable model"),recorder_unavailable:tr("Recorder non disponibile","Recorder unavailable"),error:tr("Errore: consulta il registro","Error: check logs")};
+      const calStatus=state(ids.calibration)?.state;
+      const quality=diag.quality||{};
+      const readiness=advisory.model_readiness||{};
+      const checkLabels={indoor:tr("Termometri interni","Indoor thermometers"),outdoor:tr("Termometro esterno","Outdoor thermometer"),loss:tr("Dispersioni","Heat loss"),capacity:tr("Inerzia termica","Thermal capacity"),tariff:tr("Tariffa","Tariff")};
+      const qualityDetails=detail(tr("Prerequisiti di base","Basic prerequisites"),readiness.total?readiness.complete+"/"+readiness.total+" ("+Math.round(100*readiness.complete/readiness.total)+"%)":"—")+Object.entries(readiness.checks||{}).map(([k,v])=>detail(checkLabels[k]||k,v?tr("Disponibile","Available"):tr("Mancante","Missing"))).join("")+detail(tr("Intervalli storici completi","Complete historical intervals"),quality.complete_intervals==null?"—":quality.complete_intervals+"/"+quality.expected_intervals)+Object.entries(quality.temperature||{}).map(([id,v])=>detail(id,Math.round(100*v)+"%")).join("")+Object.entries(diag.generators||{}).map(([id,v])=>'<p>'+html((e.generators||[]).find(g=>g.id===id)?.name||id)+' · '+html(v.entity||tr("Nessuna sorgente utilizzabile","No usable source"))+'<small>'+html(Object.entries(v.coverage||{}).map(([k,p])=>k+": "+Math.round(100*p)+"%").join(" · "))+'</small></p>').join("");
+      const admin=this._hass.user?.is_admin;
+      const calibrationAction=admin&&ids.calibration?'<button data-calibrate="'+html(e.id)+'" '+(this._calibrationPending.has(e.id)||["running","locked","disabled"].includes(calStatus)?"disabled":"")+'>'+tr("Avvia calibrazione","Run calibration")+'</button><p>'+html(calibrationLabels[this._calibrationResults[e.id]]||this._calibrationResults[e.id]||"")+'</p>':"";
+      const learning='<article class="learning"><h2>'+icon("vector-triangle")+tr("Modello termico","Thermal model")+'</h2>'+detail(tr("Dispersioni H","Heat loss H"),advisory.loss_w_k!=null?Number(advisory.loss_w_k).toFixed(1)+" W/K":"—")+detail(tr("Origine modello","Model source"),({estimated:tr("Stima iniziale","Initial estimate"),manual:tr("Configurato","Configured"),learned:tr("Appreso","Learned")})[advisory.thermal_model]||tr("Da configurare","Needs configuration"))+detail(tr("Inerzia C (stimata)","Capacity C (estimated)"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":advisory.initial_capacity_kwh_k!=null?Number(advisory.initial_capacity_kwh_k).toFixed(2)+" kWh/K ("+tr("stima","estimate")+")":"—")+detail(tr("Errore RMSE","RMSE error"),fit.rmse_kw!=null?Number(fit.rmse_kw).toFixed(2)+" kW":"—")+detail(tr("Campioni validi","Valid samples"),fit.samples??"—")+detail(tr("Stato calibrazione","Calibration status"),(calibrationLabels[calStatus]||val(ids.calibration)))+qualityDetails+calibrationInputs+calibrationAction+'</article>';
       const energyData=state(ids.energy_forecast)?.attributes||{};
       const metric=(v,u)=>v==null?"—":Number(v).toFixed(2)+" "+u;
       const diagnosticRows=[
@@ -149,7 +172,6 @@ class SmartHeatingPanel extends HTMLElement {
       const forecastRows=(energyData.plan||[]).map(h=>'<tr><td>'+html(new Date(h.datetime).toLocaleString(this._hass.language,{weekday:"short",hour:"2-digit",minute:"2-digit"}))+'</td><td>'+html(metric(h.outdoor_c,"°C"))+'</td><td>'+html(metric(h.heat_kw,"kW"))+'</td><td>'+html(h.generator_name||"—")+'</td><td>'+html(metric(h.cost_per_hour,"€/h"))+'</td><td>'+html(metric(h.electricity_price,"€/kWh"))+'<small>'+html(({hourly_index:tr("Orario","Hourly"),fixed:tr("Fisso","Fixed"),current_index_assumed:tr("Corrente stimato","Current assumed")})[h.price_source]||"—")+'</small>'+'</td><td>'+html(metric(h.pv_forecast_kwh,"kWh"))+'</td><td>'+html(metric(h.potential_solar_overlap_kwh,"kWh"))+'</td></tr>').join("");
       const forecast='<article><h2>'+tr("Pianificazione oraria","Hourly planning")+'</h2><p>'+tr("Prezzi orari se disponibili, altrimenti prezzo corrente. La produzione FV prevista non equivale a surplus disponibile.","Hourly prices where available, otherwise current price. Forecast PV production is not available surplus.")+'</p>'+(forecastRows?'<table><thead><tr><th>'+tr("Ora","Hour")+'</th><th>°C</th><th>kW</th><th>'+tr("Generatore","Generator")+'</th><th>€/h</th><th>'+tr("Tariffa","Tariff")+'</th><th>FV kWh</th><th>'+tr("FV potenziale","Potential PV")+'</th></tr></thead><tbody>'+forecastRows+'</tbody></table>':html(val(ids.energy_forecast)))+'</article>';
       const allZones=Object.entries(this._zones[e.id]||e.zones||{});
-      const admin=this._hass.user?.is_admin;
       const names=ids=>ids.map(id=>html(state(id)?.attributes?.friendly_name||id)).join(", ");
       const zoneCards=(entries)=>entries.map(([area,z])=>{
         const model=advisory.zones?.[area]||{};
@@ -201,6 +223,7 @@ class SmartHeatingPanel extends HTMLElement {
       <nav>${pages.map(([k,t])=>'<button data-page="'+k+'" aria-current="'+(k===this._page)+'">'+html(t)+'</button>').join("")}</nav>
       ${this._notice?'<p role="status">'+html(this._notice)+'</p>':""}${sections||'<p>'+tr("Nessun impianto disponibile","No installation available")+'</p>'}</main>${modal}`;
     this.shadowRoot.querySelectorAll("button[data-page]").forEach(b=>b.addEventListener("click",()=>{this._page=b.dataset.page;this.render();}));
+    this.shadowRoot.querySelectorAll("[data-calibrate]").forEach(b=>b.addEventListener("click",()=>this.calibrateNow(b.dataset.calibrate)));
     this.shadowRoot.querySelectorAll("[data-area]").forEach(b=>b.addEventListener("click",()=>this.openZone(b.dataset.entry,b.dataset.area)));
     this.shadowRoot.querySelector("[data-close]")?.addEventListener("click",()=>{this._editing=null;this.render();});
     this.shadowRoot.querySelector("form.dialog")?.addEventListener("submit",event=>{event.preventDefault();this.saveZone(event.currentTarget);});

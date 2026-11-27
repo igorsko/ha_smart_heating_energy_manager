@@ -73,6 +73,23 @@ async def save_zone(hass, connection, msg):
         return
     connection.send_result(msg["id"],zone_view(areas,saved,options.get("outdoor",entry.data.get("outdoor"))))
 
+@websocket_api.require_admin
+@websocket_api.websocket_command({
+    vol.Required("type"): DOMAIN+"/calibrate",
+    vol.Required("entry_id"): str,
+})
+@websocket_api.async_response
+async def calibrate(hass,connection,msg):
+    entry=_entry(hass,msg["entry_id"])
+    runtime=hass.data.get(DOMAIN,{}).get(msg["entry_id"],{})
+    callback=runtime.get("calibrate_now")
+    if entry is None or callback is None:
+        connection.send_error(msg["id"],"unavailable","Enable historical calibration first")
+        return
+    status=await callback()
+    connection.send_result(msg["id"],{"status":status})
+
 def register(hass):
+    websocket_api.async_register_command(hass,calibrate)
     websocket_api.async_register_command(hass,zones)
     websocket_api.async_register_command(hass,save_zone)

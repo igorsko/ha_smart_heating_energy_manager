@@ -53,6 +53,19 @@ class Series:
             return None
         return (total+value*(end-pos))/(end-start)
 
+class MeanSeries:
+    """Fixed-membership mean: every thermometer must cover the interval."""
+    def __init__(self, series):
+        self.series=tuple(series)
+
+    def value_at(self,timestamp,max_age):
+        values=[s.value_at(timestamp,max_age) for s in self.series]
+        return sum(values)/len(values) if values and all(v is not None for v in values) else None
+
+    def average(self,start,end,max_age):
+        values=[s.average(start,end,max_age) for s in self.series]
+        return sum(values)/len(values) if values and all(v is not None for v in values) else None
+
 class RateSeries(Series):
     """Integrate a recorded rate in kW, or a user-defined rate mapped from state."""
     def counter_delta(self, start, end, max_age):
@@ -72,7 +85,7 @@ def build_intervals(indoor,outdoor,counters,start,end,step_seconds=3600,max_age_
         b=indoor.value_at(stop,max_age_seconds)
         t=outdoor.average(start,stop,max_age_seconds)
         totals={"fuel":0.,"heat_pump":0.,"resistance":0.}
-        valid=all(v is not None for v in (a,b,t))
+        valid=all(v is not None for v in (a,b,t,indoor.average(start,stop,max_age_seconds)))
         for kind,series in counters:
             energy=series.counter_delta(start,stop,max_age_seconds)
             if energy is None:

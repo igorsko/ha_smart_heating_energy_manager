@@ -36,14 +36,16 @@ async def async_update_ui(hass):
         entities = {e.unique_id[len(prefix):]:e.entity_id for e in registry.entities.values()
                     if e.platform == DOMAIN and e.config_entry_id == entry.entry_id
                     and not e.disabled_by and e.unique_id.startswith(prefix)}
+        from .calibration_inputs import calibration_inputs
+        resolved,_=calibration_inputs(data.get("generators",{}),registry.entities.values(),hass.states.get)
         config.append({"title": entry.title, "id": entry.entry_id, "entities": entities,
                        "indoor":data.get("indoor"),"outdoor":data.get("outdoor"),
                        "generators": [{"id":k,"name":g["name"],"kind":g["kind"],
                            "control_entity":g.get("control_entity"),"state_entity":g.get("state_entity") or g.get("control_entity"),"temperature_entity":g.get("temperature_entity")}
-                           for k,g in data.get("generators",{}).items()],
+                           for k,g in resolved.items()],
                        "zones":zone_view(areas,data.get("zones",{}),data.get("outdoor"))})
     await panel_custom.async_register_panel(hass, frontend_url_path=PATH,
-        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.3.16",
+        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.3.17",
         sidebar_title="Smart Heating",sidebar_icon="mdi:home-thermometer",
         config={"installations":config},require_admin=False)
     state["owned"] = True

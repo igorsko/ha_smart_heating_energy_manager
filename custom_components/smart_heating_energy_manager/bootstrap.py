@@ -24,6 +24,49 @@ def economic_parameters(data):
         return dict(data),"estimated"
     return None,"missing_fuel_parameters"
 
+def winnet_parameters(data, entries, read):
+    """Read fuel economics from the selected WiNET device only.
+
+    These are provisional economic parameters, not calibrated capacity.
+    Never promote an incomplete generator to technical readiness.
+    """
+    if data.get("kind")!="fuel" or ready(data):
+        return dict(data)
+    entries=list(entries)
+    control=next((e for e in entries if e.entity_id==data.get("control_entity")),None)
+    if not control or not control.device_id or control.platform!="winnet_stove":
+        return dict(data)
+    siblings=[e for e in entries if e.device_id==control.device_id and e.platform=="winnet_stove" and not e.disabled_by]
+    def read_one(suffix, units):
+        matches=[e.entity_id for e in siblings if e.entity_id.endswith(suffix)]
+        if len(matches)!=1:
+            return None,None
+        s=read(matches[0])
+        if not s or s.attributes.get("unit_of_measurement") not in units:
+            return None,None
+        v=finite(s.state)
+        return (v,matches[0]) if v is not None and v>0 else (None,None)
+    price,price_id=read_one("_pellet_price_per_bag",("EUR","€"))
+    mass,mass_id=read_one("_pellet_bag_weight",("kg",))
+    if price is None or mass is None:
+        return dict(data)
+    # Existing positive, non-placeholder manual values retain priority.
+    g=dict(data)
+    if not finite(g.get("fuel_price")) or g["fuel_price"]<=0:
+        g["fuel_price"]=price
+        g["fuel_quantity"]=mass
+    if not finite(g.get("fuel_energy_kwh")) or g["fuel_energy_kwh"]<=1:
+        g["fuel_energy_kwh"]=4.8
+    if not finite(g.get("efficiency")) or not 0<g["efficiency"]<1:
+        g["efficiency"]=.90
+    g["_economic_origin"]="winnet_estimated"
+    g["_economic_entities"]={"price":price_id,"mass":mass_id}
+    rate,rate_id=read_one("_effective_pellet_consumption",("kg/h",))
+    if rate is not None:
+        g["_estimated_fuel_rate"]=rate
+        g["_economic_entities"]["rate"]=rate_id
+    return g
+
 def economic_costs(devices,electricity):
     result=[]
     for key,data in devices.items():
@@ -41,5 +84,13 @@ def economic_costs(devices,electricity):
         else:
             cost=electricity/eff if electricity is not None else None
         if cost is not None:
-            result.append({"id":key,"cost":cost,"source":origin})
+            row={"id":key,"cost":cost,"source":g.get("_economic_origin",origin)}
+            if g.get("_economic_entities"):
+                row["entities"]=g["_economic_entities"]
+                row["parameters"]={k:g[k] for k in ("fuel_price","fuel_quantity","fuel_energy_kwh","efficiency")}
+                rate=g.get("_estimated_fuel_rate")
+                if rate is not None:
+                    row["estimated_burning_cost_per_hour"]=rate*p/q
+                    row["estimated_burning_heat_kw"]=rate*e*eff
+            result.append(row)
     return sorted(result,key=lambda x:(x["cost"],x["id"]))

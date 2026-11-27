@@ -99,3 +99,7 @@ Cooling exclusions report nighttime evidence, each generator OFF evidence, tempe
 ### Generator cost display (0.3.28)
 
 Fuel cards show useful-heat unit cost and estimated hourly burning cost, distinct from current consumption. Heat pump cards identify counter-average electrical input and hourly cost; technical details remain in diagnostics. / Riquadri economici semplificati; costi orari medi e in combustione distinti.
+
+### Aggregate dynamic COP (0.3.29)
+
+Diagnostic COP estimates in 5 °C outdoor temperature bins use an independently fitted non-heat-pump building model and chronological holdout, compared against a constant COP. No extrapolation across gaps or outside the supported range. Shared meter entity identifiers are flagged; this does not establish physical multisplit topology or outdoor unit rated capacity. Learned curves are not automatically applied to individual heads. / Curva COP aggregata diagnostica e rilevamento di contatori condivisi, senza attribuzione automatica ai singoli split.

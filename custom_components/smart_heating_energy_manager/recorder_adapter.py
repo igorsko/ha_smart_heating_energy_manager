@@ -179,6 +179,9 @@ async def async_calibrate(hass, config):
         quality["generator_coverage"]={k:v["coverage"].get("combined",0) for k,v in diagnostics.items()}
         quality["joint_temperature_intervals"]=sum(1 for i in range(quality["expected_intervals"]) if all(v is not None for v in (indoor.value_at(start.timestamp()+i*step,age),indoor.value_at(start.timestamp()+(i+1)*step,age),indoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age),outdoor.average(start.timestamp()+i*step,start.timestamp()+(i+1)*step,age))))
         quality["complete_fraction"]=len(intervals)/quality["expected_intervals"] if quality["expected_intervals"] else 0
+        from .dynamic_cop import estimate, shared_sources
+        shared=shared_sources(resolved)
+        dynamic=estimate(intervals) if not shared else {"status":"shared_meter_unresolved","scope":"aggregate"}
         known_cop=None
         result=fit(intervals)
         if result is None:
@@ -188,7 +191,7 @@ async def async_calibrate(hass, config):
                 known_cop=next(iter(cops))
                 result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "cooling_consistency":cooling_consistency(result,cooling),"passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "dynamic_cop":dynamic,"shared_heat_pump_sources":shared,"cooling_consistency":cooling_consistency(result,cooling),"passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
 
 

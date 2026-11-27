@@ -20,9 +20,10 @@ class Interval:
 class Fit:
     loss_w_k: float
     capacity_kwh_k: float
-    cop: float
+    cop: float | None
     rmse_kw: float
     samples: int
+    cop_source: str = "estimated"
 
 @dataclass(frozen=True)
 class CalibrationSettings:
@@ -56,14 +57,17 @@ class CalibrationSettings:
                 or self.min_pivot > 1):
             raise ValueError("Invalid calibration settings")
 
-def fit(intervals, settings=None):
+def fit(intervals, settings=None, known_cop=None):
     """Fit H, C and COP by scaled least squares; reject weak identification.
 
     Balance: H*deltaT + C*dT/dt - COP*P_hp = P_stove + P_resistance.
     H is in kW/K. Zero Celsius is valid. Invalid intervals are skipped.
     """
     cfg = settings or CalibrationSettings()
+    if known_cop is not None and (not math.isfinite(known_cop) or not cfg.min_cop <= known_cop <= cfg.max_cop):
+        return None
     rows, targets = [], []
+    hp_present = False
     for s in intervals:
         vals = (s.hours, s.indoor_start, s.indoor_end, s.outdoor,
                 s.stove_kwh, s.hp_kwh, s.resistance_kwh)
@@ -77,32 +81,42 @@ def fit(intervals, settings=None):
         rate = (s.indoor_end - s.indoor_start) / s.hours
         if abs(rate) > cfg.max_rate:
             continue
+        hp_present |= s.hp_kwh > 0
         rows.append([delta, rate, -s.hp_kwh / s.hours])
         targets.append((s.stove_kwh + s.resistance_kwh) / s.hours)
     if len(rows) < cfg.min_samples:
         return None
-    scales = [math.sqrt(sum(r[i]**2 for r in rows)) for i in range(3)]
+    estimate_cop = hp_present and known_cop is None
+    if not estimate_cop:
+        targets = [y-r[2]*(known_cop or 0) for r,y in zip(rows,targets)]
+        rows = [r[:2] for r in rows]
+    n = 3 if estimate_cop else 2
+    if max(targets,default=0) <= 0:
+        return None
+    scales = [math.sqrt(sum(r[i]**2 for r in rows)) for i in range(n)]
     if min(scales) < 1e-8:
         return None
-    normalized = [[r[i]/scales[i] for i in range(3)] for r in rows]
-    a = [[sum(r[i]*r[j] for r in normalized) for j in range(3)] +
-         [sum(r[i]*y for r,y in zip(normalized, targets))] for i in range(3)]
-    for i in range(3):
-        pivot = max(range(i,3), key=lambda k: abs(a[k][i]))
+    normalized = [[r[i]/scales[i] for i in range(n)] for r in rows]
+    a = [[sum(r[i]*r[j] for r in normalized) for j in range(n)] +
+         [sum(r[i]*y for r,y in zip(normalized, targets))] for i in range(n)]
+    for i in range(n):
+        pivot = max(range(i,n), key=lambda k: abs(a[k][i]))
         a[i],a[pivot] = a[pivot],a[i]
         p = a[i][i]
         if abs(p) < cfg.min_pivot:
             return None
         a[i] = [v/p for v in a[i]]
-        for j in range(3):
+        for j in range(n):
             if j != i:
                 factor = a[j][i]
                 a[j] = [v-factor*w for v,w in zip(a[j],a[i])]
-    h,c,cop = [a[i][3]/scales[i] for i in range(3)]
-    if not (cfg.min_loss_w_k <= h*1000 <= cfg.max_loss_w_k and cfg.min_capacity <= c <= cfg.max_capacity and cfg.min_cop <= cop <= cfg.max_cop):
+    params = [a[i][n]/scales[i] for i in range(n)]
+    h,c = params[:2]
+    cop = params[2] if estimate_cop else known_cop if hp_present else None
+    if not (cfg.min_loss_w_k <= h*1000 <= cfg.max_loss_w_k and cfg.min_capacity <= c <= cfg.max_capacity and (cop is None or cfg.min_cop <= cop <= cfg.max_cop)):
         return None
-    rmse = math.sqrt(sum((sum(v*w for v,w in zip(r,(h,c,cop)))-y)**2
+    rmse = math.sqrt(sum((sum(v*w for v,w in zip(r,params))-y)**2
                          for r,y in zip(rows,targets))/len(rows))
     if rmse > cfg.max_rmse_kw:
         return None
-    return Fit(h*1000,c,cop,rmse,len(rows))
+    return Fit(h*1000,c,cop,rmse,len(rows),"estimated" if estimate_cop else "configured" if hp_present else "not_applicable")

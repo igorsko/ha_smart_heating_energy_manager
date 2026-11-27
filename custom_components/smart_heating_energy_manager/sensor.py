@@ -91,6 +91,12 @@ class HeatingSensor(SensorEntity):
         from .bootstrap import economic_costs, building_estimate, winnet_parameters, declared_capacity, advisory_generator
         entries=list(er.async_get(self.hass).entities.values())
         devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
+        from .learned import cop_context
+        cop_info=cop_context(ref,learned)
+        if cop_info["scope"]=="single_generator" and cop_info["cop"] is not None:
+            for v in devices.values():
+                if v["kind"]=="heat_pump":
+                    v["_learned_cop"]=cop_info["cop"]
         from .calibration_inputs import calibration_inputs
         from .bootstrap import heat_pump_live, fuel_live
         resolved,_=calibration_inputs(devices,entries,self.hass.states.get)
@@ -142,7 +148,7 @@ class HeatingSensor(SensorEntity):
         result["electricity_price"] = price
         self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
-        economic=economic_costs(devices,price)
+        economic=economic_costs(devices,price,outdoor)
         _,initial_capacity=building_estimate(d)
         from .history_quality import readiness
         from .learned import current
@@ -155,7 +161,7 @@ class HeatingSensor(SensorEntity):
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
-            "heat_pump_live":live,"fuel_live":fuel,
+            "learned_cop":cop_info,"heat_pump_live":live,"fuel_live":fuel,
             "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
             "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],

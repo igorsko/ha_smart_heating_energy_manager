@@ -20,3 +20,18 @@ class BootstrapTests(unittest.TestCase):
         self.assertAlmostEqual(costs[0]["cost"],.1)
         self.assertEqual(costs[0]["source"],"estimated")
         self.assertEqual(m.economic_costs(devices,None),[])
+
+    def test_winnet_cost_without_technical_readiness(self):
+        from types import SimpleNamespace as N
+        d={"kind":"fuel","technical_configured":False,"control_entity":"climate.example","fuel_price":0,"fuel_quantity":1,"fuel_energy_kwh":1,"efficiency":1}
+        values={"number.example_pellet_price_per_bag":(7.79,"€"),"number.example_pellet_bag_weight":(15,"kg"),"sensor.example_effective_pellet_consumption":(.8404,"kg/h")}
+        entries=[N(entity_id=k,device_id="a",platform="winnet_stove",disabled_by=None) for k in ["climate.example",*values]]
+        states={k:N(state=v,attributes={"unit_of_measurement":u}) for k,(v,u) in values.items()}
+        g=m.winnet_parameters(d,entries,states.get)
+        self.assertFalse(g["technical_configured"])
+        self.assertEqual(d["fuel_price"],0)
+        row=m.economic_costs({"stove":g},None)[0]
+        self.assertAlmostEqual(row["cost"],7.79/(15*4.8*.9))
+        self.assertAlmostEqual(row["estimated_burning_cost_per_hour"],.8404*7.79/15)
+        self.assertEqual(row["source"],"winnet_estimated")
+        self.assertEqual(m.winnet_parameters({**d,"technical_configured":True},entries,states.get)["fuel_price"],0)

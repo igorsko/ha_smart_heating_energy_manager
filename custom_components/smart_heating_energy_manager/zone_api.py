@@ -3,6 +3,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from .areas import discover_areas, zone_view
 from .temperature_zones import is_outdoor
+from .thermal_groups import group_name
 from .heat_sources import eligible, configured_sources
 
 DOMAIN = "smart_heating_energy_manager"
@@ -32,6 +33,7 @@ async def zones(hass, connection, msg):
     vol.Required("area_id"): str,
     vol.Required("temperature"): vol.Any(None,str),
     vol.Required("sources"): [str],
+    vol.Optional("thermal_group"): str,
 })
 @websocket_api.async_response
 async def save_zone(hass, connection, msg):
@@ -62,7 +64,7 @@ async def save_zone(hass, connection, msg):
     if any(not allowed(s) for s in sources):
         connection.send_error(msg["id"],"invalid_format","Invalid heating source")
         return
-    saved[msg["area_id"]]={**previous,"temperature":temperature,"sources":sources,"confirmed":True}
+    saved[msg["area_id"]]={**previous,"temperature":temperature,"sources":sources,"confirmed":True,"thermal_group":"" if outdoor else group_name(msg.get("thermal_group",previous.get("thermal_group")))}
     options["zones"]=saved
     try:
         hass.config_entries.async_update_entry(entry,options=options)

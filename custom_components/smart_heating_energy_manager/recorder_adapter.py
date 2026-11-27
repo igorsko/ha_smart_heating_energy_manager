@@ -125,7 +125,21 @@ async def async_calibrate(hass, config):
             if g.get("off_only_entity"):
                 off=g["off_only_entity"]
                 # Unknown or enabled states invalidate the interval, not zero heat.
-                observations=[Sample(s.last_updated.timestamp(),0. if s.state=="off" else None) for s in states.get(off,[])]
+                def off_evidence(s):
+                    if s.state in ("unknown","unavailable"):
+                        return None
+                    if g.get("_off_only_winnet"):
+                        code=finite(s.attributes.get("state_code"))
+                        raw=str(s.attributes.get("state_english") or s.state).strip().lower()
+                        if code in (1,9) or (code is None and raw in ("spento","off","sunout")):
+                            return 0.
+                        if code in (2,3,4,5,6,7,8) or (code is None and raw in ("avvio","in funzione","arresto","starting","working","stop","wait_on","temp_ok","no_program","wait_time")):
+                            return 1.
+                        return None
+                    if s.state=="off":
+                        return 0.
+                    return 1. if s.state in ("on","heat","cool","heat_cool","auto","dry","fan_only") else None
+                observations=[Sample(s.last_updated.timestamp(),off_evidence(s)) for s in states.get(off,[])]
                 # Do not bridge a Recorder outage merely because the live state is OFF.
                 # Live state is not independent historical evidence.
                 series=ConfirmedOffSeries(observations)

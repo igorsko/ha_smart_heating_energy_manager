@@ -5,7 +5,7 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 from .calibration import fit, validate_holdout
-from .history_input import Sample, Series, MeanSeries, RateSeries, AlternativeSeries, build_intervals
+from .history_input import Sample, Series, MeanSeries, RateSeries, ConfirmedOffSeries, AlternativeSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
 
@@ -68,7 +68,7 @@ async def async_calibrate(hass, config):
     # Coverage is diagnostic; the fit requires complete joint intervals.
     def calculate():
         states=get_significant_states(hass,start-timedelta(seconds=age),end,entity_ids=ids,
-            include_start_time_state=False,significant_changes_only=False,minimal_response=False,no_attributes=False)
+            include_start_time_state=True,significant_changes_only=False,minimal_response=False,no_attributes=False)
         indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in indoor_ids])
         outdoor=_series(states.get(outdoor_id,[]),"temperature")
         from .history_quality import temperature_coverage
@@ -125,7 +125,10 @@ async def async_calibrate(hass, config):
             if g.get("off_only_entity"):
                 off=g["off_only_entity"]
                 # Unknown or enabled states invalidate the interval, not zero heat.
-                series=RateSeries([Sample(s.last_updated.timestamp(),0. if s.state=="off" else None) for s in states.get(off,[])])
+                observations=[Sample(s.last_updated.timestamp(),0. if s.state=="off" else None) for s in states.get(off,[])]
+                # Do not bridge a Recorder outage merely because the live state is OFF.
+                # Live state is not independent historical evidence.
+                series=ConfirmedOffSeries(observations)
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
                 if coverage>0 and off not in used and off not in temp_ids:
                     selected.append(("confirmed_off_only",off,series))

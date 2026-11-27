@@ -35,3 +35,7 @@ Vendor heating-period counters can be recognized even when their state class is 
 ### Interval-level history selection (0.3.13)
 
 Global per-source coverage is diagnostic rather than an exclusion threshold. Each generator uses one valid source per interval, with alternate heating-only Daikin counters and confirmed-off fallback. Missing or stale values and counter resets remain invalid. Complete joint intervals and model quality gates still apply. / La copertura viene valutata per intervallo senza sommare contatori sovrapposti; i dati mancanti non diventano zero.
+
+### Stable Recorder states
+
+Calibration requests the initial historical state from Recorder. Explicit OFF observations may bridge an unchanged period only when bounded by recorded OFF evidence, with no intervening unknown or active state. This assumes Recorder captured transitions; it cannot prove continuity across an unrecorded outage. Live state alone is not used to extend historical coverage. Numeric energy and temperature freshness limits remain unchanged. / Gli stati OFF invariati possono essere utilizzati tra osservazioni storiche coerenti; non si estende lo storico usando il solo stato attuale.

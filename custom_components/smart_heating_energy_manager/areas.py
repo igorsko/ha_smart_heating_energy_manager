@@ -14,7 +14,7 @@ def discover_areas(hass):
             continue
         state=hass.states.get(e.entity_id)
         klass=(state.attributes.get("device_class") if state else None) or e.device_class or e.original_device_class
-        if e.domain=="sensor" and klass=="temperature":
+        if e.domain=="sensor" and klass=="temperature" and not getattr(e,"entity_category",None):
             result[area]["temperature_candidates"].append(e.entity_id)
         if e.domain=="climate":
             modes=state.attributes.get("hvac_modes",[]) if state else []

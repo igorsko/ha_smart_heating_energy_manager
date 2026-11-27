@@ -27,7 +27,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "advanced_settings", "display", "finish"])
+            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -288,6 +288,23 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),
         })
         return self.async_show_form(step_id="advanced_settings",data_schema=schema)
+
+    async def async_step_energy_forecast(self,user_input=None):
+        current={**self.config_entry.data,**self.options}
+        if user_input is not None:
+            for field in ("pv_power","grid_export","battery_soc","weather","forecast_target"):
+                self.options[field]=user_input.get(field)
+            return self._save()
+        def optional(k):
+            return vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) is not None else {})
+        power=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power"))
+        return self.async_show_form(step_id="energy_forecast",data_schema=vol.Schema({
+            optional("pv_power"):power,
+            optional("grid_export"):power,
+            optional("battery_soc"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="battery")),
+            optional("weather"):selector.EntitySelector(selector.EntitySelectorConfig(domain="weather")),
+            optional("forecast_target"):vol.All(vol.Coerce(float),vol.Range(min=5,max=35))
+        }))
 
     async def async_step_display(self, user_input=None):
         if user_input is not None:

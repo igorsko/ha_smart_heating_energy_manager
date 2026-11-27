@@ -29,6 +29,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     }
     async_add_entities([HeatingSensor(entry, key, name, unit) for key, (name, unit) in specs.items()], True)
     config = {**entry.data, **entry.options}
+    from .energy_forecast import EnergyForecast
+    async_add_entities([EnergyForecast(entry)], False)
     if config.get("history_enabled",False) or config.get("apply_learned",False):
         async_add_entities([CalibrationDiagnostic(entry)], False)
 

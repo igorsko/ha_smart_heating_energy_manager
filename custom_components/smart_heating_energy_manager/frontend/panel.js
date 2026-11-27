@@ -32,7 +32,7 @@ class SmartHeatingPanel extends HTMLElement {
     const tr=(a,b)=>it?a:b;
     const state=id=>this._hass.states[id];
     const val=id=>{const s=state(id);return !s||["unknown","unavailable"].includes(s.state)?"—":s.state+(s.attributes.unit_of_measurement?" "+s.attributes.unit_of_measurement:"");};
-    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["settings",tr("Impostazioni","Settings")]];
+    const pages=[["overview",tr("Panoramica","Overview")],["zones",tr("Zone termiche","Heating zones")],["generators",tr("Generatori","Generators")],["learning",tr("Apprendimento","Learning")],["energy",tr("Energia","Energy")],["forecast",tr("Previsioni","Forecast")],["settings",tr("Impostazioni","Settings")]];
     const card=(title,value)=>'<article><small>'+html(title)+'</small><strong>'+html(value)+'</strong></article>';
     const installations=this._panel.config?.installations||[];
     const sections=installations.map(e=>{
@@ -44,6 +44,11 @@ class SmartHeatingPanel extends HTMLElement {
       const overview='<div class="grid">'+card(tr("Temperatura interna media","Average indoor temperature"),val(ids.indoor_average))+card(tr("Temperatura esterna","Outdoor temperature"),val(ids.outdoor_temperature))+card(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand))+card(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source))+card(tr("Prezzo elettricità","Electricity price"),val(ids.electricity_price))+'</div>';
       const generators='<article><h2>'+tr("Confronto generatori","Generator comparison")+'</h2>'+(rows?'<table><thead><tr><th>'+tr("Generatore","Generator")+'</th><th>'+tr("Stato","State")+'</th><th>'+tr("Costo termico","Heat cost")+'</th></tr></thead><tbody>'+rows+'</tbody></table>':html(tr("Nessun generatore configurato","No generators configured")))+'</article>';
       const learning='<article><h2>'+tr("Modello termico","Thermal model")+'</h2><div class="grid">'+card(tr("Dispersioni","Heat loss"),fit.loss_w_k!=null?Number(fit.loss_w_k).toFixed(1)+" W/K":"—")+card(tr("Inerzia","Thermal capacity"),fit.capacity_kwh_k!=null?Number(fit.capacity_kwh_k).toFixed(2)+" kWh/K":"—")+card("COP",fit.cop!=null?Number(fit.cop).toFixed(2):"—")+card(tr("Campioni validi","Valid samples"),fit.samples??"—")+card(tr("Stato calibrazione","Calibration status"),val(ids.calibration))+'</div></article>';
+      const energyData=state(ids.energy_forecast)?.attributes||{};
+      const metric=(v,u)=>v==null?"—":Number(v).toFixed(2)+" "+u;
+      const energy='<article><h2>'+tr("Energia disponibile","Available energy")+'</h2><div class="grid">'+card(tr("Fotovoltaico","Solar PV"),metric(energyData.pv_kw,"kW"))+card(tr("Immissione in rete","Grid export"),metric(energyData.export_kw,"kW"))+card(tr("Batteria","Battery"),metric(energyData.battery_soc,"%"))+'</div></article>';
+      const forecastRows=(energyData.plan||[]).map(h=>'<tr><td>'+html(new Date(h.datetime).toLocaleString(this._hass.language,{weekday:"short",hour:"2-digit",minute:"2-digit"}))+'</td><td>'+html(metric(h.outdoor_c,"°C"))+'</td><td>'+html(metric(h.heat_kw,"kW"))+'</td><td>'+html(h.generator_name||"—")+'</td><td>'+html(metric(h.cost_per_hour,"€/h"))+'</td></tr>').join("");
+      const forecast='<article><h2>'+tr("Pianificazione oraria","Hourly planning")+'</h2><p>'+tr("Stima a prezzo corrente, senza previsione del surplus solare.","Current-price estimate, without future solar surplus forecast.")+'</p>'+(forecastRows?'<table><thead><tr><th>'+tr("Ora","Hour")+'</th><th>°C</th><th>kW</th><th>'+tr("Generatore","Generator")+'</th><th>€/h</th></tr></thead><tbody>'+forecastRows+'</tbody></table>':html(val(ids.energy_forecast)))+'</article>';
       const allZones=Object.entries(this._zones[e.id]||e.zones||{});
       const admin=this._hass.user?.is_admin;
       const names=ids=>ids.map(id=>html(state(id)?.attributes?.friendly_name||id)).join(", ");
@@ -57,7 +62,7 @@ class SmartHeatingPanel extends HTMLElement {
       const visible=allZones.filter(([,z])=>z.temperature||(!z.confirmed&&z.temperature_candidates?.length));
       const zones='<article><h2>'+tr("Zone termiche","Heating zones")+'</h2><div class="grid">'+zoneCards(visible)+'</div>'+(visible.length?"":'<p>'+tr("Nessuna zona con termometro","No zones with thermometer")+'</p>')+'</article>';
       const settings='<article><h2>'+tr("Configurazione delle zone","Zone configuration")+'</h2><p>'+tr("Qui puoi configurare anche le aree senza termometro.","Configure areas without thermometers here as well.")+'</p><div class="grid">'+zoneCards(allZones)+'</div></article>';
-      return '<section><h2>'+html(e.title)+'</h2>'+({overview:overview+zones+generators+learning,zones,generators,learning,settings}[this._page]||overview)+'</section>';
+      return '<section>'+({overview:overview+energy+zones+generators+forecast+learning,zones,generators,learning,energy,forecast,settings}[this._page]||overview)+'</section>';
     }).join("");
     let modal="";
     if(this._editing){

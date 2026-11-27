@@ -24,7 +24,8 @@
           "advanced_generator": "Generator technical settings",
           "advanced_settings": "Calibration and advanced settings",
           "advanced_tariff": "Advanced tariff components",
-          "zone_thermal": "Zone thermal settings"
+          "zone_thermal": "Zone thermal settings",
+          "energy_forecast": "Energy and forecast"
         }
       },
       "add_generator": {
@@ -179,6 +180,17 @@
         "data": {
           "target_c": "Desired temperature (°C)",
           "loss_w_k": "Heat loss coefficient (W/K)"
+        }
+      },
+      "energy_forecast": {
+        "title": "Energy and forecast",
+        "description": "All fields are optional. Select existing Home Assistant entities.",
+        "data": {
+          "pv_power": "Solar generation",
+          "grid_export": "Grid export power (positive export)",
+          "battery_soc": "Battery charge (%)",
+          "weather": "Hourly weather forecast",
+          "forecast_target": "Desired indoor temperature (°C)"
         }
       }
     },

@@ -27,7 +27,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "advanced_settings", "display", "finish"])
+            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "dhw", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -311,6 +311,31 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             optional("weather"):selector.EntitySelector(selector.EntitySelectorConfig(domain="weather")),
             optional("forecast_target"):vol.All(vol.Coerce(float),vol.Range(min=5,max=35))
         }))
+
+    async def async_step_dhw(self,user_input=None):
+        current=self.options.get("dhw",self.config_entry.data.get("dhw",{}))
+        if user_input is not None:
+            if user_input.get("minimum_c") is not None and user_input.get("target_c") is not None and user_input["minimum_c"]>user_input["target_c"]:
+                return self.async_show_form(step_id="dhw",data_schema=self._dhw_schema(user_input),errors={"base":"invalid_dhw_temperatures"})
+            self.options["dhw"]=dict(user_input) if user_input.get("entity") else {}
+            return self._save()
+        return self.async_show_form(step_id="dhw",data_schema=self._dhw_schema(current))
+
+    def _dhw_schema(self,current):
+        def opt(k):
+            return vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) is not None else {})
+        def numeric(lo,hi):
+            return vol.All(vol.Coerce(float),vol.Range(min=lo,max=hi))
+        return vol.Schema({
+            opt("entity"):selector.EntitySelector(selector.EntitySelectorConfig(domain=["water_heater","switch","climate"])),
+            opt("temperature"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            opt("power"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power")),
+            opt("energy"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="energy")),
+            opt("litres"):numeric(1,5000),
+            opt("rated_kw"):numeric(.05,50),
+            opt("minimum_c"):numeric(0,100),
+            opt("target_c"):numeric(0,100),
+        })
 
     async def async_step_display(self, user_input=None):
         if user_input is not None:

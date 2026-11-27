@@ -1,7 +1,7 @@
 """Read Energy dashboard preferences without altering Home Assistant settings."""
 from .prediction import kw, number
 
-def discover_power(prefs, read, siblings):
+def discover_power(prefs, read, siblings, battery_devices=()):
     """Use explicit semantic suffixes on devices linked to Energy counters.
 
     Never choose a generic power sensor merely because it shares a device.
@@ -77,6 +77,11 @@ def discover_power(prefs, read, siblings):
     solar_pool=sorted({e for s in sources if s.get("type")=="solar" and s.get("stat_energy_from") for e in siblings(s["stat_energy_from"])})
     if len(batteries)==1 and sum(s.get("type")=="solar" for s in sources)==1:
         s=batteries[0]
+        # A zero reading is direction-independent; never infer the sign of a generic meter.
+        if not s.get("power_config") and not s.get("stat_rate"):
+            candidate=unique(battery_devices,("_potenza","_power"),"power",watts)
+            if candidate:
+                s["_unsigned_battery_meter"]=candidate
         if not s.get("entity_capacity") and not s.get("capacity"):
             candidate=unique(solar_pool,("_battery_capacity","_capacita_della_batteria"),"energy_storage",("Wh","kWh","MWh"))
             if candidate:
@@ -111,6 +116,9 @@ def snapshot(prefs, read):
         if any(k in p for k in charge+discharge):
             values=[(power(p[k]) if k in p else 0) for k in discharge+charge]
             return sum(values[:2])-sum(values[2:]) if all(v is not None for v in values) else None
+        if s.get("_unsigned_battery_meter"):
+            value=power(s["_unsigned_battery_meter"])
+            return 0.0 if value==0 else None
         return power(s.get("stat_rate"))
     def total(values):
         return sum(values) if values and all(v is not None for v in values) else None
@@ -140,6 +148,8 @@ def snapshot(prefs, read):
     def flow_ids(group):
         ids=set()
         for s in group:
+            if s.get("_unsigned_battery_meter"):
+                ids.add(s["_unsigned_battery_meter"])
             for p in s.get("power") or [s]:
                 if p.get("stat_rate"):
                     ids.add(p["stat_rate"])
@@ -184,5 +194,11 @@ async def async_snapshot(hass):
         return [e.entity_id for e in registry.entities.values()
                 if e.device_id==record.device_id and not e.disabled_by
                 and e.entity_id.startswith("sensor.")]
-    prefs=discover_power(manager.data,hass.states.get,siblings)
+    # Only Enphase Encharge entities within the same config entry as the
+    # configured solar gateway; a generic battery power sign is unknown.
+    anchors=[registry.async_get(s.get("stat_energy_from")) for s in (manager.data or {}).get("energy_sources",[]) if s.get("type")=="solar" and s.get("stat_energy_from")]
+    configs={e.config_entry_id for e in anchors if e and e.platform=="enphase_envoy" and e.config_entry_id}
+    candidates=[e for e in registry.entities.values() if e.platform=="enphase_envoy" and e.config_entry_id in configs and not e.disabled_by and "encharge" in e.entity_id and e.entity_id.startswith("sensor.")]
+    devices={e.device_id for e in candidates if e.device_id}
+    prefs=discover_power(manager.data,hass.states.get,siblings,[e.entity_id for e in candidates] if len(devices)==1 else [])
     return snapshot(prefs,hass.states.get)

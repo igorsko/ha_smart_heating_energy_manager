@@ -27,7 +27,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "joint_plan", "dhw", "advanced_settings", "display", "finish"])
+            "zones", "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "advanced_menu", "finish"])
+
+    async def async_step_advanced_menu(self,user_input=None):
+        return self.async_show_menu(step_id="advanced_menu",menu_options=["advanced_generator","zone_thermal","advanced_tariff","energy_forecast","joint_plan","dhw","advanced_settings","display"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -212,16 +215,27 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def _generator_form(self, step, user_input, key, old):
         errors = {}
+        kind=old.get("kind","heat_pump")
+        from .config_fields import generator_fields
+        visible=generator_fields(kind)
         if user_input is not None:
             from .generators import Generator
+            submitted=user_input
+            user_input={**old,**{k:v for k,v in submitted.items() if k in visible},"kind":kind}
+            for field in ("fuel_price","fuel_quantity","fuel_energy_kwh"):
+                if field not in visible:
+                    user_input[field]=0.0 if field=="fuel_price" else 1.0
+            for field in ("energy_entity","power_entity","state_entity","fuel_rate_entity","fuel_mass_entity","level_entity","temperature_entity"):
+                if field in visible and field not in submitted:
+                    user_input[field]=None
             try:
                 Generator(key, user_input["kind"], user_input["efficiency"],
                           user_input["capacity_kw"], user_input["fuel_price"],
                           user_input["fuel_quantity"], user_input["fuel_energy_kwh"])
                 from .fuel import parse_rates
-                rates=parse_rates(user_input.get("level_rates",""))
+                rates=parse_rates(user_input.get("level_rates","") if kind=="fuel" else "")
                 from .thermal_zones import parse_curve
-                curve=parse_curve(user_input.get("cop_curve",""))
+                curve=parse_curve(user_input.get("cop_curve","") if kind=="heat_pump" else "")
                 if curve and user_input["kind"]!="heat_pump":
                     raise ValueError("COP curve requires heat pump")
                 if rates and (user_input["kind"]!="fuel" or not user_input.get("level_entity") or not user_input.get("state_entity") or user_input["level_entity"]==user_input["state_entity"]):
@@ -239,7 +253,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         def optional(key):
             return vol.Optional(key, description={"suggested_value": defaults[key]} if key in defaults else {})
         positive = vol.All(vol.Coerce(float), vol.Range(min=.001))
-        schema = vol.Schema({
+        fields = {
             required("name", ""): str,
             required("kind", "heat_pump"): vol.In(["heat_pump","resistance","fuel"]),
             required("efficiency", 1.0): positive,
@@ -264,30 +278,31 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             optional("energy_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="energy")),
             optional("power_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="power")),
             optional("temperature_entity"): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-        })
+        }
+        schema=vol.Schema({k:v for k,v in fields.items() if k.schema in visible})
         return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
 
     async def async_step_building(self,user_input=None):
         if user_input is not None:
-            self.options["outdoor"]=user_input.get("outdoor")
+            self.options.update({k:user_input.get(k) for k in ("outdoor","building_area","building_profile")})
             return self._save()
         current={**self.config_entry.data,**self.options}
         return self.async_show_form(step_id="building",data_schema=vol.Schema({
-            vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature"))
-            for k in ("outdoor",)}))
+            vol.Optional("outdoor",description={"suggested_value":current["outdoor"]} if current.get("outdoor") else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
+            vol.Optional("building_area",description={"suggested_value":current["building_area"]} if current.get("building_area") else {}):vol.All(vol.Coerce(float),vol.Range(min=5,max=10000)),
+            vol.Optional("building_profile",default=current.get("building_profile") or "medium"):vol.In(["low_loss","medium","high_loss"]),
+        }))
 
     async def async_step_advanced_settings(self, user_input=None):
         if user_input is not None:
             if user_input.pop("reset_calibration",False):
                 self.options["calibration_generation"] = self.options.get("calibration_generation",0)+1
             self.options.update(user_input)
-            for field in ("h","building_area","building_profile"):
+            for field in ("h",):
                 self.options[field] = user_input.get(field)
             return self._save()
         current = {**self.config_entry.data, **self.options}
         schema = vol.Schema({
-            vol.Optional("building_area",description={"suggested_value":current["building_area"]} if current.get("building_area") else {}):vol.All(vol.Coerce(float),vol.Range(min=5,max=10000)),
-            vol.Optional("building_profile",default=current.get("building_profile") or "medium"):vol.In(["low_loss","medium","high_loss"]),
             vol.Optional("h",description={"suggested_value":current["h"]} if current.get("h") else {}): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
             vol.Required("apply_learned",default=current.get("apply_learned",False)): bool,

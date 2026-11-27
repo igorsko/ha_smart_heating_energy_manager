@@ -46,3 +46,20 @@ class CalibrationTests(unittest.TestCase):
             self.assertEqual(result.cop_source,"configured" if hp_only else "not_applicable")
             if hp_only:
                 self.assertIsNone(cal.fit(samples))
+
+    def test_holdout_validation(self):
+        samples=[]
+        for i in range(60):
+            outdoor=float(i%12)
+            heat=3.0 if i%3==0 else 0.
+            rate=(heat-.15*(20-outdoor))/(4+.15/2)
+            samples.append(cal.Interval(1,20,20+rate,outdoor,heat,0,0))
+        result=cal.validate_holdout(samples)
+        self.assertEqual(result["status"],"evaluated")
+        self.assertEqual(result["samples"],15)
+        self.assertEqual(result["training_samples"],45)
+        self.assertLess(result["mae_c"],.01)
+        self.assertLess(result["mae_c"],result["baseline_mae_c"])
+        self.assertEqual(cal.validate_holdout(samples[:25])["status"],"insufficient_data")
+        shifted=[cal.Interval(s.hours,s.indoor_start,s.indoor_end+1,s.outdoor,s.stove_kwh,s.hp_kwh,s.resistance_kwh) for s in samples[-15:]]
+        self.assertGreater(cal.validate_holdout(samples[:45]+shifted)["mae_c"],.9)

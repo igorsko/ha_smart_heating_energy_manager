@@ -75,3 +75,10 @@ class HistoryTests(unittest.TestCase):
         self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(3600,10)],3600))
         self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(1800,None),h.Sample(3600,11)],3600))
         self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(3600,1)],3600))
+
+    def test_off_bounded_by_known_activation(self):
+        series=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(36000,1)])
+        self.assertEqual(series.counter_delta(10800,14400,7200),0)
+        self.assertIsNone(series.counter_delta(32400,36000,7200))
+        unknown=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(18000,None),h.Sample(36000,1)])
+        self.assertIsNone(unknown.counter_delta(10800,14400,7200))

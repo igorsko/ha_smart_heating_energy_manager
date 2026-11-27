@@ -47,3 +47,7 @@ Distinguish incomplete technical parameters from insufficient confirmed capacity
 ### Declared thermal capacity (0.3.15)
 
 Explicit rated useful heating output from the selected device can enable provisional advisory recommendations and forecasts. Confirmed manual ratings take precedence. Generic electrical power, other devices and conflicting ratings are excluded. Nominal output is not measured available heat at the current outdoor temperature; incomplete efficiency inputs remain estimates. / La potenza termica nominale dichiarata viene distinta dalla potenza elettrica assorbita; le raccomandazioni restano consultive e provvisorie.
+
+### Live heat pump input (0.3.16)
+
+Explicit electrical input power sensors are discovered independently of nominal thermal capacity. The dashboard shows instantaneous electrical input, the configured or assumed COP, and estimated useful heat only when heating action is confirmed. Missing or stale power stays unknown; COP is not measured. / La plancia mostra assorbimento elettrico, COP utilizzato e potenza termica stimata quando l’erogazione è confermata.

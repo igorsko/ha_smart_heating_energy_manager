@@ -46,3 +46,26 @@ class InputTests(unittest.TestCase):
         self.assertEqual(resolved["hp"]["energy_entity"],"sensor.hp_consumo_riscaldamento_annuale")
         self.assertEqual(resolved["r"]["power_entity"],"sensor.r_power")
         self.assertTrue(report["r"]["usable"])
+
+    def test_onecta_cross_device_isolation(self):
+        devices={"hp":{"kind":"heat_pump","technical_configured":False,"control_entity":"climate.unit_room_temperature"}}
+        entries=[N(entity_id=e,unique_id=e,device_id=d,platform="daikin_onecta",disabled_by=None,config_entry_id=c) for e,d,c in [
+            ("climate.unit_room_temperature","a","one"),
+            ("sensor.unit_climatecontrol_heating_energy_consumption_yearly","b","one"),
+            ("sensor.other_climatecontrol_heating_energy_consumption_yearly","c","one"),
+            ("sensor.unit_climatecontrol_heating_energy_consumption_monthly","d","two")]]
+        state=N(state="10",attributes={"unit_of_measurement":"kWh","state_class":"total_increasing"})
+        resolved,report=m.calibration_inputs(devices,entries,lambda _:state)
+        self.assertEqual(resolved["hp"]["energy_entity"],entries[1].entity_id)
+        self.assertTrue(report["hp"]["usable"])
+
+    def test_vertigo_runtime_requires_rating(self):
+        entry=N(entity_id="switch.unit_heating",unique_id="heat",device_id="a",platform="olimpia_vertigo",disabled_by=None)
+        devices={"r":{"kind":"resistance","technical_configured":False,"control_entity":entry.entity_id}}
+        resolved,report=m.calibration_inputs(devices,[entry],lambda _:None)
+        self.assertFalse(report["r"]["usable"])
+        self.assertEqual(resolved["r"]["state_entity"],entry.entity_id)
+        devices["r"]["manual_input_rate"]=1.5
+        resolved,report=m.calibration_inputs(devices,[entry],lambda _:None)
+        self.assertTrue(report["r"]["usable"])
+        self.assertEqual(resolved["r"]["active_states"],"on")

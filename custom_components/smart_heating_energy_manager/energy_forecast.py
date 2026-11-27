@@ -75,6 +75,7 @@ class EnergyForecast(SensorEntity):
             or manual_pv.endswith(("_consumption_ct_power","_consumption_power","_home_power"))):
             attrs["pv_kw"]=None
             attrs["energy_origins"]["pv_kw"]="conflicting_source"
+        attrs["energy_flow_origins"]=imported.get("energy_flow_origins",{})
         attrs["grid_net_kw"]=imported.get("grid_net_kw")
         attrs["battery_net_kw"]=imported.get("battery_net_kw")
         attrs["home_kw"]=imported.get("home_kw")

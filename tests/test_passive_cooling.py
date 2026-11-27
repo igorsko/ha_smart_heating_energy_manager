@@ -36,3 +36,13 @@ class CoolingTests(unittest.TestCase):
         self.assertEqual(m.collect(indoor,outdoor,[],night,0,25200,3600,7200),[])
         unknown=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(3600,None),h.Sample(25200,1)])
         self.assertEqual(m.collect(indoor,outdoor,[unknown],night,0,25200,3600,7200),[])
+
+    def test_exclusion_counts_identify_generator(self):
+        indoor=h.Series([h.Sample(i*3600,20) for i in range(8)])
+        outdoor=h.Series([h.Sample(i*3600,5) for i in range(8)])
+        night=h.ConfirmedOffSeries([h.Sample(0,0),h.Sample(25200,1)])
+        active=h.ConfirmedOffSeries([h.Sample(0,1),h.Sample(25200,1)])
+        counts={}
+        self.assertEqual(m.collect(indoor,outdoor,{"heater":active},night,0,25200,3600,7200,counts),[])
+        self.assertEqual(counts["examined"],7)
+        self.assertGreater(counts["off_not_confirmed:heater"],0)

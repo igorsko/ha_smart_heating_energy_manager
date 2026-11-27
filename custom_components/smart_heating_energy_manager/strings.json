@@ -15,19 +15,12 @@
           "add_generator": "Add generator",
           "edit_generator": "Edit generator",
           "remove_generator": "Remove generator",
-          "building": "Outdoor temperature",
+          "building": "Building and insulation",
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
           "tariff": "Electricity tariff",
-          "display": "Display",
           "zones": "Heating zones",
-          "advanced_generator": "Generator technical settings",
-          "advanced_settings": "Calibration and advanced settings",
-          "advanced_tariff": "Advanced tariff components",
-          "zone_thermal": "Zone thermal settings",
-          "energy_forecast": "Energy and forecast",
-          "dhw": "Domestic hot water (DHW)",
-          "joint_plan": "Joint energy planning"
+          "advanced_menu": "Advanced settings"
         }
       },
       "add_generator": {
@@ -59,9 +52,11 @@
         }
       },
       "building": {
-        "title": "Outdoor temperature",
+        "title": "Building and insulation",
         "data": {
-          "outdoor": "Outdoor temperature"
+          "outdoor": "Outdoor temperature",
+          "building_area": "Heated floor area (m²)",
+          "building_profile": "Building heat loss profile (initial estimate)"
         },
         "description": "Indoor temperature is the average of zone thermometers. Select an independent outdoor thermometer only if it is not already identified in the outdoor zone."
       },
@@ -134,7 +129,8 @@
           "fuel_mass_estimated": "Mass counter is estimated",
           "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)",
           "cop_curve": "COP curve (outdoor °C=COP, one point per line)"
-        }
+        },
+        "description": "Only parameters relevant to the selected generator type are shown. Use the main menu to change the device."
       },
       "advanced_generator": {
         "data": {
@@ -153,9 +149,7 @@
           "history_min_coverage": "Minimum history coverage (fraction)",
           "apply_learned": "Use learned heat loss",
           "calibration_locked": "Lock calibration updates",
-          "reset_calibration": "Invalidate previous calibration",
-          "building_area": "Heated floor area (m²)",
-          "building_profile": "Building heat loss profile (initial estimate)"
+          "reset_calibration": "Invalidate previous calibration"
         },
         "title": "Calibration and advanced settings"
       },
@@ -226,6 +220,19 @@
           "efficiency": "One-way efficiency (0–1)",
           "base_home_power": "Whole-home power history",
           "base_excluded_power": "All electric heating and DHW power sensors to subtract"
+        }
+      },
+      "advanced_menu": {
+        "title": "Advanced settings",
+        "menu_options": {
+          "advanced_generator": "Generator technical settings",
+          "zone_thermal": "Zone thermal settings",
+          "advanced_tariff": "Advanced tariff components",
+          "energy_forecast": "Energy and forecast",
+          "joint_plan": "Joint energy planning",
+          "dhw": "Domestic hot water (DHW)",
+          "advanced_settings": "Calibration and advanced settings",
+          "display": "Display"
         }
       }
     },

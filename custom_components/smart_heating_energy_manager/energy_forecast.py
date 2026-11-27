@@ -68,6 +68,13 @@ class EnergyForecast(SensorEntity):
                 attrs["energy_origins"][field]="manual" if attrs[field] is not None else "unavailable"
         attrs["energy_manual_entities"]={k:d.get(k) for k in ("pv_power","grid_export","battery_soc")}
         attrs["energy_manual_updated"]={k:s.last_updated.isoformat() for k in attrs["energy_manual_entities"] if (s:=self.hass.states.get(d[k]) if d.get(k) else None) is not None}
+        attrs["energy_power_entities"]=imported.get("energy_power_entities",{})
+        manual_pv=d.get("pv_power") or ""
+        if attrs["energy_origins"]["pv_kw"]=="manual" and (
+            manual_pv in attrs["energy_power_entities"].get("home",[])
+            or manual_pv.endswith(("_consumption_ct_power","_consumption_power","_home_power"))):
+            attrs["pv_kw"]=None
+            attrs["energy_origins"]["pv_kw"]="conflicting_source"
         attrs["grid_net_kw"]=imported.get("grid_net_kw")
         attrs["battery_net_kw"]=imported.get("battery_net_kw")
         attrs["home_kw"]=imported.get("home_kw")

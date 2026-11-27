@@ -132,12 +132,14 @@ def validate_holdout(intervals, known_cop=None, settings=None):
     model = fit(samples[:-count], cfg, known_cop)
     if model is None:
         return {"status":"unidentifiable_training"}
-    errors = []
+    errors, baseline = [], []
     h = model.loss_w_k/1000
     c = model.capacity_kwh_k
     for s in samples[-count:]:
         values = (s.hours,s.indoor_start,s.indoor_end,s.outdoor,s.stove_kwh,s.hp_kwh,s.resistance_kwh)
         if not all(math.isfinite(v) for v in values) or not cfg.min_hours <= s.hours <= cfg.max_hours or min(values[4:]) < 0:
+            continue
+        if not all(cfg.min_temperature <= v <= cfg.max_temperature for v in values[1:4]) or abs(s.indoor_end-s.indoor_start)/s.hours > cfg.max_rate:
             continue
         if s.hp_kwh > 0 and model.cop is None:
             continue
@@ -145,11 +147,12 @@ def validate_holdout(intervals, known_cop=None, settings=None):
         decay = math.exp(-h*s.hours/c)
         predicted = s.outdoor+(s.indoor_start-s.outdoor)*decay+heat*(-math.expm1(-h*s.hours/c))/h
         errors.append(predicted-s.indoor_end)
+        baseline.append(abs(s.indoor_end-s.indoor_start))
     if len(errors)<12:
         return {"status":"insufficient_holdout","samples":len(errors)}
     return {"status":"evaluated","training_samples":model.samples,"samples":len(errors),
             "mae_c":sum(abs(e) for e in errors)/len(errors),
             "rmse_c":math.sqrt(sum(e*e for e in errors)/len(errors)),
             "bias_c":sum(errors)/len(errors),
-            "baseline_mae_c":sum(abs(s.indoor_end-s.indoor_start) for s in samples[-count:])/count,
+            "baseline_mae_c":sum(baseline)/len(baseline),
             "method":"chronological_one_step_measured_inputs"}

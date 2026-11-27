@@ -60,7 +60,7 @@ def calibration_inputs(devices, entries, read):
                         "heating_energy_"+period,period+"_heating_energy",
                         "heating_energy_consumption_"+period,period+"_heating_energy_consumption",
                         "heating_"+period+"_energy_consumption","energy_consumption_heating_"+period,
-                        "energy_consumption_"+period+"_heating")),("Wh","kWh","MWh"),("total","total_increasing"))
+                        "energy_consumption_"+period+"_heating","heating_energy_"+period+"_consumption","heating_energy_consumption_"+period+"_total")),("Wh","kWh","MWh"),("total","total_increasing"))
                     if candidate:
                         g["energy_entity"]=candidate
                         break

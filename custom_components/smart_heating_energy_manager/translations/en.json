@@ -115,7 +115,10 @@
           "history_days": "History days",
           "history_interval_minutes": "Analysis interval (minutes)",
           "history_max_age_hours": "Maximum sample age (hours)",
-          "history_min_coverage": "Minimum history coverage (fraction)"
+          "history_min_coverage": "Minimum history coverage (fraction)",
+          "apply_learned": "Use learned heat loss",
+          "calibration_locked": "Lock calibration updates",
+          "reset_calibration": "Invalidate previous calibration"
         }
       },
       "discover_winnet": {

@@ -6,7 +6,7 @@ from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 from .calibration import fit
 from .onboarding import ready
-from .history_input import Sample, Series, RateSeries, build_intervals
+from .history_input import Sample, Series, MeanSeries, RateSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
 
@@ -48,7 +48,9 @@ def _coverage(series,start,end,step,age):
     return valid/total if total else 0
 
 async def async_calibrate(hass, config):
-    if not config.get("indoor") or not config.get("outdoor"):
+    indoor_ids=config.get("indoor_reference") or ([config["indoor"]] if config.get("indoor") else [])
+    outdoor_id=config.get("outdoor_reference") or config.get("outdoor")
+    if not indoor_ids or not outdoor_id:
         return {"status":"configure_temperature_sensors"}
     devices=list(config.get("generators",{}).items())
     if not devices:
@@ -56,7 +58,8 @@ async def async_calibrate(hass, config):
     pending=[key for key,g in devices if not ready(g)]
     if pending:
         return {"status":"configure_generator_parameters","pending_generators":pending}
-    ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
+    temp_ids=set(indoor_ids+[outdoor_id])
+    ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -65,8 +68,8 @@ async def async_calibrate(hass, config):
     def calculate():
         states=get_significant_states(hass,start-timedelta(seconds=age),end,entity_ids=ids,
             include_start_time_state=False,significant_changes_only=False,minimal_response=False,no_attributes=False)
-        indoor=_series(states.get(ids[0],[]),"temperature")
-        outdoor=_series(states.get(ids[1],[]),"temperature")
+        indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in indoor_ids])
+        outdoor=_series(states.get(outdoor_id,[]),"temperature")
         counters,diagnostics,used=[],{},set()
         for key,g in devices:
             choices=[]
@@ -110,7 +113,7 @@ async def async_calibrate(hass, config):
             for method,entity,series in choices:
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
                 report[method]=round(coverage,3)
-                if coverage>=threshold and entity not in used and entity not in ids[:2] and selected is None:
+                if coverage>=threshold and entity not in used and entity not in temp_ids and selected is None:
                     selected=(method,entity,series)
             diagnostics[key]={"coverage":report,"source":selected[0] if selected else None}
             if selected:
@@ -120,6 +123,11 @@ async def async_calibrate(hass, config):
             return {"status":"configure_missing_energy_source","generators":diagnostics}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         result=fit(intervals)
+        if result is None:
+            hp=[g for _,g in devices if g["kind"]=="heat_pump"]
+            cops={g["efficiency"] for g in hp if not g.get("cop_curve")}
+            if hp and len(cops)==1 and all(not g.get("cop_curve") for g in hp):
+                result=fit(intervals,known_cop=next(iter(cops)))
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,
-                "intervals":len(intervals),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)

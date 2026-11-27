@@ -33,3 +33,10 @@ class HistoryTests(unittest.TestCase):
     def test_runtime_unknown(self):
         rate=h.RateSeries([h.Sample(0,3.456),h.Sample(1800,None),h.Sample(3600,0)])
         self.assertIsNone(rate.counter_delta(0,3600,7200))
+
+    def test_fixed_mean(self):
+        mean=h.MeanSeries([self.series(20,22),self.series(18,20)])
+        self.assertEqual(mean.value_at(0,7200),19)
+        self.assertEqual(mean.value_at(3600,7200),21)
+        incomplete=h.MeanSeries([self.series(20,22),self.series(18,None)])
+        self.assertIsNone(incomplete.value_at(3600,7200))

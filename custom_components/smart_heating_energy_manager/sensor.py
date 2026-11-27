@@ -5,7 +5,7 @@ from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
 from .model import finite, electricity_price, estimate
 from .onboarding import ready
-from .temperature_zones import resolve, average_temperature
+from .temperature_zones import resolve, average_temperature, reference_config
 from .areas import discover_areas, zone_view
 from .thermal_zones import parse_curve, cop_at, zone_status
 from .generators import Generator, rank_generators
@@ -62,7 +62,6 @@ class HeatingSensor(SensorEntity):
     async def async_update(self):
         d = self._data
         learned = self.hass.data['smart_heating_energy_manager'][self._entry_id]['learned']
-        loss, model_source = effective_loss(d, learned)
         index = self.hass.states.get(d.get("pun", "")) if d.get("use_index") else None
         # Reject index observations older than 36 hours, including restored stale values.
         if index and dt_util.utcnow() - index.last_updated > timedelta(hours=d.get('index_max_age_hours',36)):
@@ -71,10 +70,12 @@ class HeatingSensor(SensorEntity):
             index.attributes.get("unit_of_measurement") if index else None,
             d.get("fixed"), d.get("spread",0), d.get("losses",0), d.get("variable",0), d.get("tax",0), d.get("vat",0))
         zones=zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor"))
-        indoor_ids,outdoor_id=resolve(zones,d.get("indoor"),d.get("outdoor"))
+        ref=reference_config(d,zones)
+        loss,model_source=effective_loss(ref,learned)
+        indoor_ids,outdoor_id=ref["indoor_reference"],ref["outdoor_reference"]
         indoor,count=average_temperature(indoor_ids,self._temperature)
         outdoor=self._temperature(outdoor_id)
-        if model_source=="learned" and (indoor_ids!=[d.get("indoor")] or outdoor_id!=d.get("outdoor")):
+        if model_source=="learned" and count!=len(indoor_ids):
             loss=d.get("h")
             model_source="manual" if loss else "learning_pending"
         zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in zones.items() if z.get("confirmed") and not z.get("outdoor")}
@@ -145,13 +146,12 @@ class CalibrationDiagnostic(SensorEntity):
                     result = {"status":"locked"}
                 elif not self._config.get("history_enabled",False):
                     result = {"status":"disabled"}
-                elif not self._config.get("indoor") or not self._config.get("outdoor"):
-                    result = {"status":"configure_temperature_sources"}
                 elif "recorder" not in self.hass.config.components:
                     result = {"status": "recorder_unavailable"}
                 else:
-                    result = await async_calibrate(self.hass, self._config)
-                    record = accepted(result,self._config)
+                    config=reference_config(self._config,zone_view(discover_areas(self.hass),self._config.get("zones",{}),self._config.get("outdoor")))
+                    result = await async_calibrate(self.hass, config)
+                    record = accepted(result,config)
                     if record:
                         await runtime['store'].async_save(record)
                         runtime['learned'] = record

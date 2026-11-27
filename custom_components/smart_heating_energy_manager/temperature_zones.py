@@ -24,3 +24,8 @@ def resolve(zones, indoor=None, outdoor=None):
 def average_temperature(ids,read):
     values=[v for entity in ids if (v:=read(entity)) is not None and isfinite(v)]
     return (sum(values)/len(values) if values else None,len(values))
+
+
+def reference_config(config,zones):
+    indoor,outdoor=resolve(zones,config.get("indoor"),config.get("outdoor"))
+    return {**config,"indoor_reference":indoor,"outdoor_reference":outdoor}

@@ -1,0 +1,5 @@
+# Average-temperature calibration
+
+The indoor reference uses the same unique room thermometer mapping as the overview. Historical fitting requires every member to have valid readings throughout each interval, so a missing thermometer cannot create a fictitious temperature jump. Outdoor measurements are excluded. Stored fits include a fingerprint of the reference membership; incompatible previous fits are not applied. The live mean can still display partial readings, but a learned loss is not applied to partial membership.
+
+The model first attempts joint H, C and aggregate COP identification where heat pump input and independent useful heat are available. For fuel/resistance-only systems it fits H and C without COP. For heat-pump-only or otherwise unidentifiable systems it may use a common explicitly configured constant COP; the result is labeled configured rather than learned. No independent heat input means absolute H/C/COP cannot all be identified. No per-room fit yet. Results depend on source measurement quality and unmodeled solar/internal gains. Runtime verification pending.

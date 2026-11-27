@@ -5,6 +5,7 @@ from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
 from .model import finite, electricity_price, estimate
 from .onboarding import ready
+from .thermal_zones import parse_curve, cop_at, zone_status
 from .generators import Generator, rank_generators
 
 SCAN_INTERVAL = timedelta(seconds=60)
@@ -64,6 +65,8 @@ class HeatingSensor(SensorEntity):
             index.attributes.get("unit_of_measurement") if index else None,
             d.get("fixed"), d.get("spread",0), d.get("losses",0), d.get("variable",0), d.get("tax",0), d.get("vat",0))
         indoor, outdoor = self._temperature(d.get("indoor")), self._temperature(d.get("outdoor"))
+        zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in d.get("zones",{}).items() if z.get("confirmed")}
+        efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
                               d["pellet_mass"], d["lhv"], d["efficiency"])
@@ -72,8 +75,17 @@ class HeatingSensor(SensorEntity):
             h = finite(loss)
             demand = max(0, indoor-outdoor)*h/1000 if indoor is not None and outdoor is not None and h is not None and h>0 else None
             devices = d.get("generators", {})
-            generators = [Generator(k,v["kind"],v["efficiency"],v["capacity_kw"],v["fuel_price"],
-                          v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]) for k,v in devices.items() if ready(v)]
+            generators=[]
+            for k,v in devices.items():
+                if not ready(v):
+                    continue
+                efficiency=v["efficiency"]
+                origin="manual"
+                if v["kind"]=="heat_pump":
+                    efficiency,origin=cop_at(parse_curve(v.get("cop_curve","")),outdoor,efficiency)
+                efficiencies[k]={"value":efficiency,"source":origin}
+                generators.append(Generator(k,v["kind"],efficiency,v["capacity_kw"],v["fuel_price"],
+                    v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
             candidates = rank_generators(generators, price, demand)
             recommendation = ("unknown" if demand is None else "none" if demand == 0 else
                               devices[candidates[0][0]]["name"] if candidates else "no_suitable_generator")
@@ -83,6 +95,7 @@ class HeatingSensor(SensorEntity):
         self._attr_available = self._attr_native_value is not None
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
             "thermal_model": model_source, "loss_w_k": loss,
+            "zones": zone_models, "efficiencies": efficiencies,
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}
 

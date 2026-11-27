@@ -23,7 +23,8 @@
           "zones": "Heating zones",
           "advanced_generator": "Generator technical settings",
           "advanced_settings": "Calibration and advanced settings",
-          "advanced_tariff": "Advanced tariff components"
+          "advanced_tariff": "Advanced tariff components",
+          "zone_thermal": "Zone thermal settings"
         }
       },
       "add_generator": {
@@ -128,7 +129,8 @@
           "level_entity": "Power level entity",
           "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
           "fuel_mass_estimated": "Mass counter is estimated",
-          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)",
+          "cop_curve": "COP curve (outdoor °C=COP, one point per line)"
         }
       },
       "advanced_generator": {
@@ -164,6 +166,20 @@
           "vat": "VAT fraction"
         },
         "title": "Advanced tariff components"
+      },
+      "zone_thermal": {
+        "title": "Select zone",
+        "data": {
+          "area": "Area"
+        }
+      },
+      "zone_thermal_details": {
+        "title": "Comfort and heat loss",
+        "description": "Both fields are optional. Enter heat loss only if known.",
+        "data": {
+          "target_c": "Desired temperature (°C)",
+          "loss_w_k": "Heat loss coefficient (W/K)"
+        }
       }
     },
     "error": {

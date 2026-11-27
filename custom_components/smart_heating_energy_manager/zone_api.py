@@ -53,7 +53,7 @@ async def save_zone(hass, connection, msg):
     if any(not s.startswith(("climate.","switch.","script.")) or (hass.states.get(s) is None and s not in previous.get("sources",[])) for s in sources):
         connection.send_error(msg["id"],"invalid_format","Invalid heating source")
         return
-    saved[msg["area_id"]]={"temperature":temperature,"sources":sources,"confirmed":True}
+    saved[msg["area_id"]]={**previous,"temperature":temperature,"sources":sources,"confirmed":True}
     options["zones"]=saved
     hass.config_entries.async_update_entry(entry,options=options)
     connection.send_result(msg["id"],zone_view(areas,saved))

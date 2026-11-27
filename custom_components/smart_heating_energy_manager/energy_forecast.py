@@ -130,7 +130,10 @@ class EnergyForecast(SensorEntity):
                 index=self.hass.states.get(index_id) if d.get("use_index") and index_id else None
                 if index and dt_util.utcnow()-index.last_updated>timedelta(hours=d.get("index_max_age_hours",36)):
                     index=None
-                price,_=electricity_price(index.state if index else None,index.attributes.get("unit_of_measurement") if index else None,d.get("fixed"),d.get("spread",0),d.get("losses",0),d.get("variable",0),d.get("tax",0),d.get("vat",0))
+                price,price_source=electricity_price(index.state if index else None,index.attributes.get("unit_of_measurement") if index else None,d.get("fixed"),d.get("spread",0),d.get("losses",0),d.get("variable",0),d.get("tax",0),d.get("vat",0))
+                from .hourly_tariff import marginal_forecast, price_at
+                future=marginal_forecast(index.attributes,d) if index else {}
+                attrs["price_assumption"]="hourly_with_explicit_fallback" if future else "current_price_constant"
                 devices=d.get("generators",{})
                 for h in hours:
                     gs=[]
@@ -143,7 +146,10 @@ class EnergyForecast(SensorEntity):
                         gs.append(Generator(k,v["kind"],eff,v["capacity_kw"],v["fuel_price"],v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
                     stamp=dt_util.parse_datetime(h["datetime"]).astimezone(timezone.utc).replace(minute=0,second=0,microsecond=0).isoformat()
                     pv=solar.get(stamp)
-                    for row in plan([h],loss,d.get("forecast_target"),gs,price):
+                    hourly_price,origin=price_at(h["datetime"],future,price,price_source)
+                    for row in plan([h],loss,d.get("forecast_target"),gs,hourly_price):
+                        row["electricity_price"]=hourly_price
+                        row["price_source"]=origin
                         row["pv_forecast_kwh"]=pv
                         # Gross production is not free surplus; report potential overlap only.
                         chosen=next((g for g in gs if g.identifier==row["generator"]),None)

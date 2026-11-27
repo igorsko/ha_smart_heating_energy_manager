@@ -79,3 +79,15 @@ class EnergyImportTests(unittest.TestCase):
         self.assertAlmostEqual(data["home_kw"],.7)
         self.assertAlmostEqual(data["export_kw"],.1)
         self.assertEqual(data["energy_flow_origins"]["home_kw"],"balance")
+
+    def test_unsigned_battery_zero_only(self):
+        prefs={"energy_sources":[{"type":"solar","stat_rate":"sensor.pv"},{"type":"home","stat_rate":"sensor.home"},{"type":"grid"},{"type":"battery"}]}
+        states={k:SimpleNamespace(state=v,attributes={"unit_of_measurement":"W"}) for k,v in [("sensor.pv",220),("sensor.home",870),("sensor.example_potenza",0)]}
+        discovered=m.discover_power(prefs,states.get,lambda _:[],["sensor.example_potenza"])
+        data=m.snapshot(discovered,states.get)
+        self.assertEqual(data["battery_net_kw"],0)
+        self.assertAlmostEqual(data["grid_net_kw"],.65)
+        states["sensor.example_potenza"].state=100
+        data=m.snapshot(discovered,states.get)
+        self.assertIsNone(data["battery_net_kw"])
+        self.assertIsNone(data["grid_net_kw"])

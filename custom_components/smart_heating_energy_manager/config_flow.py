@@ -24,10 +24,10 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     """Manage optional devices without changing the installation's entity IDs."""
 
     async def async_step_init(self, user_input=None):
-        self.devices = dict(self.config_entry.options.get("generators", {}))
+        self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "add_generator", "discover_winnet", "edit_generator", "remove_generator", "building", "tariff", "display", "finish"])
+            "zones", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -74,7 +74,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         }),errors={"base":"no_discovered_entities"} if user_input is not None else {})
 
     async def async_step_confirm_discovery(self,user_input=None):
-        return await self._generator_form("confirm_discovery",user_input,str(uuid4()),self._discovered_defaults)
+        return await self._simple_generator("confirm_discovery",user_input,str(uuid4()),self._discovered_defaults)
 
     async def async_step_tariff(self,user_input=None):
         if user_input is not None:
@@ -91,7 +91,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="tariff",data_schema=vol.Schema(schema))
 
     async def async_step_add_generator(self, user_input=None):
-        return await self._generator_form("add_generator", user_input, str(uuid4()), {})
+        return await self._simple_generator("add_generator", user_input, str(uuid4()), {})
 
     async def async_step_edit_generator(self, user_input=None):
         if not self.devices:
@@ -103,7 +103,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("generator"): vol.In({k:v["name"] for k,v in self.devices.items()})}))
 
     async def async_step_edit_details(self, user_input=None):
-        return await self._generator_form("edit_details", user_input, self.selected, self.devices[self.selected])
+        return await self._simple_generator("edit_details", user_input, self.selected, self.devices[self.selected])
 
     async def async_step_remove_generator(self, user_input=None):
         if not self.devices:
@@ -113,6 +113,51 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             return self._save()
         return self.async_show_form(step_id="remove_generator", data_schema=vol.Schema({
             vol.Required("generator"): vol.In({k:v["name"] for k,v in self.devices.items()})}))
+
+    async def async_step_advanced_generator(self,user_input=None):
+        if not self.devices:
+            return await self.async_step_init()
+        if user_input is not None:
+            self.selected=user_input["generator"]
+            return await self.async_step_advanced_details()
+        return self.async_show_form(step_id="advanced_generator",data_schema=vol.Schema({
+            vol.Required("generator"):vol.In({k:v["name"] for k,v in self.devices.items()})}))
+
+    async def async_step_advanced_details(self,user_input=None):
+        return await self._generator_form("advanced_details",user_input,self.selected,self.devices[self.selected])
+
+    async def _simple_generator(self,step,user_input,key,old):
+        from .onboarding import merge_basic
+        from homeassistant.helpers import entity_registry as er
+        errors={}
+        if user_input is not None:
+            try:
+                entity=user_input.get("control_entity")
+                registry=er.async_get(self.hass)
+                record=registry.async_get(entity) if entity else None
+                state=self.hass.states.get(entity) if entity else None
+                name=user_input.get("name","").strip() or (state.name if state else entity)
+                if not name:
+                    raise ValueError("name")
+                data=merge_basic(old,user_input,name)
+                if record and record.device_id and (not old.get("control_entity") or old.get("control_entity")==entity):
+                    from .onboarding import suggest_sensors
+                    siblings=[e for e in registry.entities.values() if e.device_id==record.device_id and not e.disabled_by]
+                    found=suggest_sensors(siblings,self.hass.states.get,data["kind"])
+                    for field,value in found.items():
+                        if not data.get(field):
+                            data[field]=value
+                self.devices[key]=data
+                return self._save()
+            except ValueError:
+                errors["base"]="invalid_generator"
+        defaults={**old,**(user_input or {})}
+        schema=vol.Schema({
+            vol.Optional("control_entity",description={"suggested_value":defaults["control_entity"]} if defaults.get("control_entity") else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain=["climate","switch","script"])),
+            vol.Required("kind",default=defaults.get("kind","heat_pump")):selector.SelectSelector(selector.SelectSelectorConfig(options=["heat_pump","resistance","fuel"],translation_key="generator_kind",mode=selector.SelectSelectorMode.DROPDOWN)),
+            vol.Optional("name",description={"suggested_value":defaults["name"]} if defaults.get("name") else {}):str,
+        })
+        return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
 
     async def _generator_form(self, step, user_input, key, old):
         errors = {}
@@ -131,7 +176,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             except ValueError:
                 errors["base"] = "invalid_generator"
             else:
-                self.devices[key] = user_input
+                self.devices[key] = {**old, **user_input, "technical_configured": True}
                 return self._save()
         defaults = {**old, **(user_input or {})}
         def required(key, default):
@@ -166,18 +211,25 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         })
         return self.async_show_form(step_id=step,data_schema=schema,errors=errors)
 
-    async def async_step_building(self, user_input=None):
+    async def async_step_building(self,user_input=None):
+        if user_input is not None:
+            self.options.update({"indoor":user_input.get("indoor"),"outdoor":user_input.get("outdoor")})
+            return self._save()
+        current={**self.config_entry.data,**self.options}
+        return self.async_show_form(step_id="building",data_schema=vol.Schema({
+            vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature"))
+            for k in ("indoor","outdoor")}))
+
+    async def async_step_advanced_settings(self, user_input=None):
         if user_input is not None:
             if user_input.pop("reset_calibration",False):
                 self.options["calibration_generation"] = self.options.get("calibration_generation",0)+1
             self.options.update(user_input)
-            for field in ("indoor","outdoor","h"):
+            for field in ("h",):
                 self.options[field] = user_input.get(field)
             return self._save()
         current = {**self.config_entry.data, **self.options}
         schema = vol.Schema({
-            vol.Optional("indoor",description={"suggested_value":current["indoor"]} if current.get("indoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
-            vol.Optional("outdoor",description={"suggested_value":current["outdoor"]} if current.get("outdoor") else {}): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Optional("h",description={"suggested_value":current["h"]} if current.get("h") else {}): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
             vol.Required("apply_learned",default=current.get("apply_learned",False)): bool,
@@ -189,7 +241,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("history_interval_minutes",default=current.get("history_interval_minutes",60)): vol.All(vol.Coerce(int),vol.Range(min=15,max=360)),
             vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),
         })
-        return self.async_show_form(step_id="building",data_schema=schema)
+        return self.async_show_form(step_id="advanced_settings",data_schema=schema)
 
     async def async_step_display(self, user_input=None):
         if user_input is not None:

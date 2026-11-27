@@ -28,7 +28,7 @@ class SmartHeatingPanel extends HTMLElement {
   }
   async loadHistory(entry, ids) {
     const key=entry.id;
-    const entities=[ids.indoor_average,ids.outdoor_temperature,ids.heat_demand,ids.electricity_price].filter(Boolean);
+    const entities=[...new Set([ids.indoor_average,ids.outdoor_temperature,ids.heat_demand,ids.electricity_price].filter(Boolean))];
     const signature=entities.join(",");
     if(!signature || this._historyPending.has(key)) return;
     const previous=this._history[key];
@@ -60,11 +60,13 @@ class SmartHeatingPanel extends HTMLElement {
     const axes={};
     for(const d of series){
       const values=d.points.filter(p=>Number.isFinite(p.v)).map(p=>p.v);
-      (axes[d.axis]??=[]).push(...values);
+      const axisValues=axes[d.axis]??=[];
+      for(const v of values)axisValues.push(v);
     }
     const bounds={};
     for(const [axis,values] of Object.entries(axes)){
-      let lo=Math.min(...values),hi=Math.max(...values);
+      let lo=Infinity,hi=-Infinity;
+      for(const v of values){lo=Math.min(lo,v);hi=Math.max(hi,v);}
       if(axis==="power")lo=Math.min(0,lo);
       if(hi-lo<.01){lo-=.5;hi+=.5;}
       bounds[axis]=[lo,hi];
@@ -79,12 +81,14 @@ class SmartHeatingPanel extends HTMLElement {
     }).join("");
     const ticks=Array.from({length:5},(_,i)=>'<text x="'+(L+i*(W-L-R)/4)+'" y="'+(H-5)+'" text-anchor="middle">'+html(new Date(record.start+i*(record.end-record.start)/4).toLocaleTimeString(this._hass.language,{hour:"2-digit",minute:"2-digit"}))+'</text>').join("");
     const paths=series.map(d=>{
-      let path="",open=false;
+      let path="",open=false,previous=null;
       for(const p of d.points){
-        if(!Number.isFinite(p.v)){open=false;continue;}
+        if(!Number.isFinite(p.v)){open=false;previous=null;continue;}
+        if(open && previous!==null)path+="L"+x(p.t).toFixed(1)+","+y(previous,d.axis).toFixed(1)+" ";
         path+=(open?"L":"M")+x(p.t).toFixed(1)+","+y(p.v,d.axis).toFixed(1)+" ";
-        open=true;
+        previous=p.v;open=true;
       }
+      if(open && previous!==null)path+="L"+x(record.end).toFixed(1)+","+y(previous,d.axis).toFixed(1);
       return '<path d="'+path+'" fill="none" stroke="'+d.color+'" stroke-width="2" vector-effect="non-scaling-stroke"/>';
     }).join("");
     return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Historical series">'+grid+ticks+paths+'</svg><div class="legend">'+series.map(d=>'<span><i style="background:'+d.color+'"></i>'+html(d.label)+'</span>').join("")+'</div>';
@@ -105,7 +109,6 @@ class SmartHeatingPanel extends HTMLElement {
       const ranked=advisory.candidates||[];
       if(["overview","history","tariffs"].includes(this._page)) this.loadHistory(e,ids);
       const costs=new Map(ranked.map(x=>[x.id,x.cost]));
-      const rows=(e.generators||[]).map(g=>'<tr><td>'+html(g.name)+'</td><td>'+html(val(g.state_entity))+'</td><td>'+html(costs.has(g.id)?Number(costs.get(g.id)).toFixed(3)+" €/kWh":"—")+'</td></tr>').join("");
       const kpi=(label,value,ico,tone)=>'<div class="kpi '+tone+'">'+icon(ico)+'<div><small>'+html(label)+'</small><strong>'+html(value)+'</strong></div></div>';
       const overview='<div class="kpis">'+kpi(tr("Temperatura interna media","Average indoor temperature"),val(ids.indoor_average),"home-thermometer","blue")+kpi(tr("Temperatura esterna","Outdoor temperature"),val(ids.outdoor_temperature),"thermometer","blue")+kpi(tr("Fabbisogno termico","Heat demand"),val(ids.heat_demand),"fire","orange")+kpi(tr("Generatore consigliato","Recommended source"),val(ids.recommended_source),"heat-pump","green")+kpi(tr("Costo termico stimato","Estimated heat cost"),ranked.length?Number(ranked[0].cost).toFixed(3)+" €/kWh":"—","cash-multiple","purple")+'</div>';
       const sorted=[...(e.generators||[])].sort((a,b)=>(costs.get(a.id)??Infinity)-(costs.get(b.id)??Infinity));

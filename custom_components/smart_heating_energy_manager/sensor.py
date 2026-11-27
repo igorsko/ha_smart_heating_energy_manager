@@ -72,6 +72,9 @@ class HeatingSensor(SensorEntity):
         indoor_ids,outdoor_id=resolve(zones,d.get("indoor"),d.get("outdoor"))
         indoor,count=average_temperature(indoor_ids,self._temperature)
         outdoor=self._temperature(outdoor_id)
+        if model_source=="learned" and (indoor_ids!=[d.get("indoor")] or outdoor_id!=d.get("outdoor")):
+            loss=d.get("h")
+            model_source="manual" if loss else "learning_pending"
         zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in zones.items() if z.get("confirmed") and not z.get("outdoor")}
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:

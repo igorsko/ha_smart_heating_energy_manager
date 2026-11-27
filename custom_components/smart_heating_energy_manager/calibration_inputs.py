@@ -36,6 +36,16 @@ def calibration_inputs(devices, entries, read):
                 if s and s.attributes.get("unit_of_measurement") in units and (not classes or s.attributes.get("state_class") in classes):
                     matches.append(e.entity_id)
             return matches[0] if len(matches)==1 else None
+        def registered_counter(suffixes, units, classes):
+            """Recognize a documented counter before its state is published."""
+            candidates=[]
+            for e in siblings:
+                if not e.entity_id.startswith("sensor.") or not (e.entity_id.endswith(suffixes) or str(getattr(e,"unique_id","")).endswith(suffixes)):
+                    continue
+                s=read(e.entity_id)
+                if s is None or (s.state in ("unknown","unavailable") and s.attributes.get("unit_of_measurement") is None) or (s.attributes.get("unit_of_measurement") in units and s.attributes.get("state_class") in classes):
+                    candidates.append(e.entity_id)
+            return candidates[0] if len(candidates)==1 else None
         stove=winnet_siblings(entries,g) if g.get("kind")=="fuel" else []
         if stove:
             siblings=stove
@@ -44,7 +54,11 @@ def calibration_inputs(devices, entries, read):
             statuses=[e.entity_id for e in stove if e.entity_id.startswith("sensor.") and str(getattr(e,"unique_id","")).endswith("_state")]
             if len(statuses)==1:
                 g["_operating_entity"]=statuses[0]
-            mass=unique(("_estimated_pellet_consumed","_pellet_pellet_used"),("kg",),("total","total_increasing"))
+                # The burning flag is false even during ignition/shutdown.
+                # Only explicit WiNET OFF state can establish zero heat.
+                g["off_only_entity"]=statuses[0]
+                g["_off_only_winnet"]=True
+            mass=registered_counter(("_estimated_pellet_consumed","_pellet_pellet_used"),("kg",),("total","total_increasing"))
             if not g.get("fuel_mass_entity") and mass:
                 g.update(fuel_mass_entity=mass,fuel_mass_unit="kg",fuel_mass_estimated=True)
             for field in ("state_entity","fuel_rate_entity","level_entity"):
@@ -116,7 +130,7 @@ def calibration_inputs(devices, entries, read):
             if g["kind"]=="heat_pump" and not original.get("energy_entity") and onecta:
                 alternatives=[]
                 for period in ("yearly","annual","monthly","weekly","daily"):
-                    candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("total","total_increasing","measurement",None))
+                    candidate=registered_counter(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("total","total_increasing","measurement",None))
                     if candidate and candidate!=g.get("energy_entity"):
                         alternatives.append(candidate)
                 g["energy_alternatives"]=alternatives
@@ -181,7 +195,7 @@ def calibration_inputs(devices, entries, read):
             for e in entries:
                 if control.device_id and e.device_id==control.device_id:
                     related[e.entity_id]=e
-        for field in ("control_entity","state_entity","power_entity","energy_entity","fuel_rate_entity","fuel_mass_entity","_operating_entity"):
+        for field in ("control_entity","state_entity","power_entity","energy_entity","fuel_rate_entity","fuel_mass_entity","_operating_entity","off_only_entity"):
             entity=g.get(field)
             if entity:
                 related.setdefault(entity,next((e for e in entries if e.entity_id==entity),None))

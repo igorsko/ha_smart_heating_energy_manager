@@ -110,3 +110,14 @@ class InputTests(unittest.TestCase):
         devices={"hp":{"kind":"heat_pump","control_entity":entries[0].entity_id,"technical_configured":False}}
         resolved,_=m.calibration_inputs(devices,entries,lambda _:None)
         self.assertEqual(resolved["hp"]["energy_entity"],entries[1].entity_id)
+
+    def test_winnet_counter_and_off_source_before_live_state(self):
+        entries=[N(entity_id=e,unique_id=u,device_id="a",platform="winnet_stove",disabled_by=None) for e,u in [("climate.stove","a_climate"),("sensor.stove_stato","a_state"),("binary_sensor.stove_burning","a_burning"),("sensor.stove_estimated_pellet_consumed","a_pellet_pellet_used")]]
+        resolved,_=m.calibration_inputs({"stove":{"kind":"fuel","control_entity":"climate.stove","technical_configured":False}},entries,lambda _:None)
+        self.assertEqual(resolved["stove"]["fuel_mass_entity"],entries[3].entity_id)
+        self.assertEqual(resolved["stove"]["off_only_entity"],entries[1].entity_id)
+        self.assertTrue(resolved["stove"]["_off_only_winnet"])
+    def test_alternate_counters_before_live_state(self):
+        entries=[N(entity_id=e,unique_id=e,device_id="a",platform="daikin_onecta",disabled_by=None,config_entry_id="one") for e in ("climate.unit_room_temperature","sensor.unit_heating_yearly_electrical_consumption","sensor.unit_heating_daily_electrical_consumption","sensor.unit_cooling_daily_electrical_consumption")]
+        resolved,_=m.calibration_inputs({"hp":{"kind":"heat_pump","control_entity":entries[0].entity_id,"technical_configured":False}},entries,lambda _:None)
+        self.assertEqual(resolved["hp"]["energy_alternatives"],[entries[2].entity_id])

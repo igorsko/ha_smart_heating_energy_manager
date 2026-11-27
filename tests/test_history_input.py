@@ -40,3 +40,10 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(mean.value_at(3600,7200),21)
         incomplete=h.MeanSeries([self.series(20,22),self.series(18,None)])
         self.assertIsNone(incomplete.value_at(3600,7200))
+
+    def test_partial_calibration_only_complete_off_intervals(self):
+        off=h.RateSeries([h.Sample(0,0),h.Sample(3600,0),h.Sample(5400,None),h.Sample(7200,0),h.Sample(10800,0)])
+        intervals=h.build_intervals(self.series(20,20,20,20),self.series(5,5,5,5),
+            [("fuel",self.series(0,1,2,3)),("resistance",off)],0,10800)
+        self.assertEqual(len(intervals),2)
+        self.assertTrue(all(s.resistance_kwh==0 for s in intervals))

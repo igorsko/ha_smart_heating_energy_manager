@@ -75,9 +75,8 @@ class RateSeries(Series):
 class ConfirmedOffSeries(Series):
     """Bounded OFF evidence from a change-only state history.
 
-    A long unchanged OFF period is usable only between recorded OFF
-    observations. Unknown
-    or active states interrupt that evidence. Never extrapolate past
+    A long unchanged OFF period is usable between a recorded OFF and
+    a later known observation. Unknown states interrupt that evidence. Never extrapolate past
     the final observation beyond the ordinary freshness limit.
     """
     def counter_delta(self,start,end,max_age):
@@ -93,6 +92,10 @@ class ConfirmedOffSeries(Series):
         if end-last.timestamp<=max_age and start-self.samples[left].timestamp<=max_age:
             return 0.
         if right<len(self.samples) and self.samples[right].value==0:
+            return 0.
+        # A recorded transition from OFF to a known active state also bounds
+        # the preceding OFF period in a change-only Recorder stream.
+        if right<len(self.samples) and self.samples[right].value==1:
             return 0.
         if last.timestamp>=end:
             return 0.

@@ -25,7 +25,8 @@
           "advanced_settings": "Calibrazione e impostazioni avanzate",
           "advanced_tariff": "Componenti tariffarie avanzate",
           "zone_thermal": "Parametri termici delle zone",
-          "energy_forecast": "Energia e previsioni"
+          "energy_forecast": "Energia e previsioni",
+          "dhw": "Acqua calda sanitaria (ACS)"
         }
       },
       "add_generator": {
@@ -192,12 +193,27 @@
           "weather": "Previsioni meteo orarie",
           "forecast_target": "Temperatura interna desiderata (°C)"
         }
+      },
+      "dhw": {
+        "title": "Acqua calda sanitaria",
+        "description": "Modulo consultivo facoltativo. Non modifica il boiler o i cicli sanitari. Lascia vuota l'entità per disattivarlo.",
+        "data": {
+          "entity": "Entità boiler",
+          "temperature": "Temperatura acqua (sensore)",
+          "power": "Potenza misurata",
+          "energy": "Contatore energia",
+          "litres": "Capacità (litri)",
+          "rated_kw": "Potenza nominale (kW)",
+          "minimum_c": "Temperatura minima di riferimento (°C)",
+          "target_c": "Temperatura obiettivo di riferimento (°C)"
+        }
       }
     },
     "error": {
       "invalid_generator": "Parametri del generatore non validi",
       "no_discovered_entities": "Nessuna entità compatibile",
-      "no_areas": "Nessuna area configurata in Home Assistant"
+      "no_areas": "Nessuna area configurata in Home Assistant",
+      "invalid_dhw_temperatures": "La temperatura minima non può superare quella obiettivo."
     }
   },
   "selector": {

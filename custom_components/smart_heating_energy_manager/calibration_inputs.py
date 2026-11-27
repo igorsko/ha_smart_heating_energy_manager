@@ -37,9 +37,11 @@ def calibration_inputs(devices, entries, read):
                 burning=unique(("_stove_burning","_burning"),(None,))
                 if burning:
                     g["state_entity"]=burning
-            if g.get("state_entity") and g["state_entity"]==mapping.get("state_entity") or g.get("state_entity","").endswith(("_stove_burning","_burning")):
-                g.setdefault("active_states","on")
-                g.setdefault("inactive_states","off")
+            if g.get("state_entity") and (g["state_entity"]==mapping.get("state_entity") or g["state_entity"].endswith(("_stove_burning","_burning"))):
+                if not g.get("active_states"):
+                    g["active_states"]="on"
+                if not g.get("inactive_states"):
+                    g["inactive_states"]="off"
             if not g.get("fuel_rate_entity"):
                 rate=unique(("_effective_pellet_consumption","_insights_effective_rate"),("kg/h",))
                 if rate:

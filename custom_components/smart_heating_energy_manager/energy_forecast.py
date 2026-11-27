@@ -25,9 +25,13 @@ class EnergyForecast(SensorEntity):
         self._attr_unique_id=f"{entry.entry_id}_energy_forecast"
         self._attr_native_value="pending"
         self._task=None
+        self._forecast_attrs={}
+        self._live_attrs={}
+        self._refreshing=False
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
         self.async_on_remove(async_track_time_interval(self.hass,self.refresh,timedelta(minutes=15)))
+        self.async_on_remove(async_track_time_interval(self.hass,self.refresh_live,timedelta(seconds=30)))
         self._task=self.hass.async_create_task(self.refresh())
         self.async_on_remove(self._task.cancel)
     def read(self,key,power=False):
@@ -37,7 +41,7 @@ class EnergyForecast(SensorEntity):
             return None
         unit=s.attributes.get("unit_of_measurement")
         return kw(s.state,unit) if power else number(s.state) if unit=="%" else None
-    async def refresh(self,now=None):
+    async def refresh_live(self,now=None):
         d=self.config
         pv=self.read("pv_power",True)
         export=self.read("grid_export",True)
@@ -45,8 +49,7 @@ class EnergyForecast(SensorEntity):
         attrs={"pv_kw":pv if pv is not None and pv>=0 else None,
                "export_kw":max(0,export) if export is not None else None,
                "battery_soc":soc if soc is not None and 0<=soc<=100 else None,
-               "plan":[],"forecast":[],"mode":"advisory","price_assumption":"current_price_constant",
-               "solar_assumption":"future_surplus_unknown","model":"steady_state"}
+               "mode":"advisory"}
         from .energy_import import async_snapshot
         try:
             imported=await async_snapshot(self.hass)
@@ -61,6 +64,33 @@ class EnergyForecast(SensorEntity):
             attrs["energy_origins"][field]="manual" if d.get(manual) else "energy_dashboard" if attrs[field] is not None else "unavailable"
         attrs["grid_net_kw"]=imported.get("grid_net_kw")
         attrs["battery_net_kw"]=imported.get("battery_net_kw")
+        attrs["home_kw"]=imported.get("home_kw")
+        self._live_attrs=attrs
+        self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}
+        self.async_write_ha_state()
+
+    async def refresh(self,now=None):
+        if self._refreshing:
+            return
+        self._refreshing=True
+        try:
+            await self._refresh_forecast()
+        finally:
+            self._refreshing=False
+
+    async def _refresh_forecast(self):
+        from datetime import timezone
+        from .solar_prediction import async_solar
+        d=self.config
+        await self.refresh_live()
+        attrs={"plan":[],"forecast":[],"price_assumption":"current_price_constant","solar_assumption":"future_surplus_unknown","model":"steady_state"}
+        try:
+            solar=await async_solar(self.hass,self._live_attrs.get("energy_dashboard_sources",{}))
+        except Exception:
+            _LOGGER.exception("Solar forecast unavailable")
+            solar={}
+        now=dt_util.utcnow()
+        attrs["solar_forecast"]=[{"datetime":t,"pv_kwh":v} for t,v in solar.items() if now<=dt_util.parse_datetime(t)<now+timedelta(hours=24)]
         status="configure_weather"
         weather=d.get("weather")
         if weather:
@@ -102,7 +132,15 @@ class EnergyForecast(SensorEntity):
                         if v["kind"]=="heat_pump":
                             eff,_=cop_at(parse_curve(v.get("cop_curve","")),h["temperature_c"],eff)
                         gs.append(Generator(k,v["kind"],eff,v["capacity_kw"],v["fuel_price"],v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
+                    stamp=dt_util.parse_datetime(h["datetime"]).astimezone(timezone.utc).replace(minute=0,second=0,microsecond=0).isoformat()
+                    pv=solar.get(stamp)
                     for row in plan([h],loss,d.get("forecast_target"),gs,price):
+                        row["pv_forecast_kwh"]=pv
+                        # Gross production is not free surplus; report potential overlap only.
+                        chosen=next((g for g in gs if g.identifier==row["generator"]),None)
+                        electric=row["heat_kw"]/chosen.efficiency if chosen and chosen.kind!="fuel" else None
+                        row["electricity_kwh"]=round(electric,3) if electric is not None else None
+                        row["potential_solar_overlap_kwh"]=round(min(electric,pv),3) if electric is not None and pv is not None else None
                         row["generator_name"]=devices.get(row["generator"],{}).get("name")
                         attrs["plan"].append(row)
                 status="estimated" if attrs["plan"] else "configure_model" if hours else "forecast_unavailable"
@@ -110,5 +148,6 @@ class EnergyForecast(SensorEntity):
                 _LOGGER.exception("Hourly weather forecast unavailable")
                 status="forecast_unavailable"
         self._attr_native_value=status
-        self._attr_extra_state_attributes=attrs
+        self._forecast_attrs=attrs
+        self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}
         self.async_write_ha_state()

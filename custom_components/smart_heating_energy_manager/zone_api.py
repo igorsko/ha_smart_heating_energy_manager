@@ -2,6 +2,7 @@
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from .areas import discover_areas, zone_view
+from .temperature_zones import is_outdoor
 
 DOMAIN = "smart_heating_energy_manager"
 
@@ -21,7 +22,7 @@ async def zones(hass, connection, msg):
         connection.send_error(msg["id"],"not_found","Integration not found")
         return
     data={**entry.data,**entry.options}
-    connection.send_result(msg["id"],zone_view(discover_areas(hass),data.get("zones",{})))
+    connection.send_result(msg["id"],zone_view(discover_areas(hass),data.get("zones",{}),data.get("outdoor")))
 
 @websocket_api.websocket_command({
     vol.Required("type"): DOMAIN+"/save_zone",
@@ -49,14 +50,15 @@ async def save_zone(hass, connection, msg):
             state.attributes.get("unit_of_measurement") not in ("°C","°F")):
             connection.send_error(msg["id"],"invalid_format","Select a temperature sensor")
             return
-    sources=list(dict.fromkeys(msg["sources"]))
+    outdoor=is_outdoor(msg["area_id"],{**areas[msg["area_id"]],**previous,"temperature":temperature},options.get("outdoor",entry.data.get("outdoor")))
+    sources=[] if outdoor else list(dict.fromkeys(msg["sources"]))
     if any(not s.startswith(("climate.","switch.","script.")) or (hass.states.get(s) is None and s not in previous.get("sources",[])) for s in sources):
         connection.send_error(msg["id"],"invalid_format","Invalid heating source")
         return
     saved[msg["area_id"]]={**previous,"temperature":temperature,"sources":sources,"confirmed":True}
     options["zones"]=saved
     hass.config_entries.async_update_entry(entry,options=options)
-    connection.send_result(msg["id"],zone_view(areas,saved))
+    connection.send_result(msg["id"],zone_view(areas,saved,options.get("outdoor",entry.data.get("outdoor"))))
 
 def register(hass):
     websocket_api.async_register_command(hass,zones)

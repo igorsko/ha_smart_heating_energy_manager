@@ -25,6 +25,13 @@ def discover_areas(hass):
             zone[field].sort()
     return result
 
-def zone_view(discovered, saved):
+def zone_view(discovered, saved, outdoor=None):
     """Preserve confirmed mappings; never treat a suggestion as confirmation."""
-    return {key:{**area,**saved.get(key,{}),"name":area["name"]} for key,area in discovered.items()}
+    from .temperature_zones import is_outdoor
+    result={key:{**area,**saved.get(key,{}),"name":area["name"]} for key,area in discovered.items()}
+    for key,zone in result.items():
+        zone["outdoor"]=is_outdoor(key,zone,outdoor)
+        if zone["outdoor"]:
+            zone["sources"]=[]
+            zone["source_candidates"]=[]
+    return result

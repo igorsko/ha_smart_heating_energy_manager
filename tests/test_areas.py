@@ -1,9 +1,12 @@
-import importlib.util
+import importlib
+import sys
+import types
 import unittest
 from pathlib import Path
-spec=importlib.util.spec_from_file_location("areas",Path(__file__).parents[1]/"custom_components/smart_heating_energy_manager/areas.py")
-areas=importlib.util.module_from_spec(spec)
-spec.loader.exec_module(areas)
+pkg=types.ModuleType("area_test_package")
+pkg.__path__=[str(Path(__file__).parents[1]/"custom_components/smart_heating_energy_manager")]
+sys.modules[pkg.__name__]=pkg
+areas=importlib.import_module(pkg.__name__+".areas")
 
 class AreaTests(unittest.TestCase):
     def test_suggestions_not_confirmed(self):

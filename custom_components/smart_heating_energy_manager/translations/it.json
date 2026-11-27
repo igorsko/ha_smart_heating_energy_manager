@@ -153,7 +153,9 @@
           "history_min_coverage": "Copertura minima storico (frazione)",
           "apply_learned": "Usa dispersione termica appresa",
           "calibration_locked": "Blocca aggiornamento calibrazione",
-          "reset_calibration": "Invalida calibrazione precedente"
+          "reset_calibration": "Invalida calibrazione precedente",
+          "building_area": "Superficie riscaldata (m²)",
+          "building_profile": "Profilo dispersioni edificio (stima iniziale)"
         },
         "title": "Calibrazione e parametri avanzati"
       },

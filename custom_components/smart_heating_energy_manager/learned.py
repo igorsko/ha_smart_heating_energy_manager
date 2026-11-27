@@ -29,4 +29,8 @@ def effective_loss(config,record):
     valid=current(record,config)
     if config.get("apply_learned",False) and valid:
         return valid["fit"]["loss_w_k"],"learned"
-    return config.get("h"),"manual" if config.get("h") else "learning_pending"
+    if config.get("h"):
+        return config["h"],"manual"
+    from .bootstrap import building_estimate
+    h,_=building_estimate(config)
+    return h,"estimated" if h is not None else "learning_pending"

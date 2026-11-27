@@ -104,3 +104,9 @@ class InputTests(unittest.TestCase):
         self.assertTrue(rows["sensor.unit_power"]["disabled"])
         self.assertIsNone(rows["sensor.unit_energy"]["state"])
         self.assertNotIn("power_entity",resolved["r"])
+
+    def test_onecta_counter_identity_before_state_available(self):
+        entries=[N(entity_id=e,unique_id=e,device_id="a",platform="daikin_onecta",disabled_by=None,config_entry_id="one") for e in ("climate.unit_room_temperature","sensor.unit_climatecontrol_heating_yearly_electrical_consumption","sensor.unit_climatecontrol_cooling_yearly_electrical_consumption")]
+        devices={"hp":{"kind":"heat_pump","control_entity":entries[0].entity_id,"technical_configured":False}}
+        resolved,_=m.calibration_inputs(devices,entries,lambda _:None)
+        self.assertEqual(resolved["hp"]["energy_entity"],entries[1].entity_id)

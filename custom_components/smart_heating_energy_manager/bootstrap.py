@@ -183,7 +183,25 @@ def heat_pump_live(data, read, outdoor, now, average=None, electricity=None):
             power=value*factor
     control=read(data.get("control_entity")) if data.get("control_entity") else None
     action=control.attributes.get("hvac_action") if control else None
-    heating=bool(control and control.state not in ("off","unknown","unavailable") and action=="heating")
+    mode=control.state if control else "unknown"
+    operating=read(data.get("state_entity")) if data.get("state_entity") else None
+    raw=str(operating.state).lower() if operating else None
+    status="unknown"
+    evidence=None
+    if mode=="off":
+        status,evidence="off","climate_mode"
+    elif mode not in ("unknown","unavailable"):
+        if action in ("heating","cooling","idle","fan","drying","defrosting"):
+            status,evidence=action,"hvac_action"
+        elif raw in ("heating","cooling","idle","defrosting"):
+            status,evidence=raw,"operating_sensor"
+        elif raw=="on" and operating and mode=="heat" and str(data.get("state_entity","")).endswith(("_heating_active","_heating_running")):
+            status,evidence="heating","operating_sensor"
+        elif raw=="on" and operating and str(data.get("state_entity","")).endswith(("_compressor_running","_compressor_active")):
+            status,evidence="compressor_running","operating_sensor"
+        elif raw=="off" and operating and str(data.get("state_entity","")).endswith(("_compressor_running","_compressor_active")):
+            status,evidence="compressor_stopped","operating_sensor"
+    heating=status=="heating"
     # Without explicit heating action, the electrical input is still useful,
     # but fan/standby/defrost cannot be distinguished from useful heat.
     source="sensor" if power is not None else "unavailable"
@@ -193,7 +211,9 @@ def heat_pump_live(data, read, outdoor, now, average=None, electricity=None):
         entity=average["power_entity"]
         interval=average["interval_minutes"]
         source="counter_average"
-    return {"power_w":power,"power_entity":entity,"power_source":source,"interval_minutes":interval,"cop":cop,"cop_source":origin,
+    if status=="unknown" and source=="counter_average" and power>0:
+        status,evidence="recent_consumption","energy_counter"
+    return {"mode":mode,"operating_status":status,"operating_evidence":evidence,"hvac_action":action,"state_entity":data.get("state_entity"),"state_value":raw,"operating_candidates":data.get("_operating_candidates",[]),"power_w":power,"power_entity":entity,"power_source":source,"interval_minutes":interval,"cop":cop,"cop_source":origin,
             "heat_kw":power*cop/1000 if power is not None and heating and source=="sensor" and cop is not None and cop>0 else None,
             "cost_per_hour":power*electricity/1000 if power is not None and electricity is not None else None,
             "heating_confirmed":heating}
@@ -218,5 +238,9 @@ def fuel_live(data, read, now):
                 rate=None
     p,q,e,eff=map(finite,(data.get("fuel_price"),data.get("fuel_quantity"),data.get("fuel_energy_kwh"),data.get("efficiency")))
     kg=data.get("fuel_mass_unit","kg")=="kg"
-    return {"rate_kg_h":rate,"rate_entity":entity,"cost_per_hour":rate*p/q if rate is not None and kg and p is not None and q and q>0 else None,
+    operating_id=data.get("_operating_entity")
+    operating=read(operating_id) if operating_id else None
+    code=operating.attributes.get("state_code") if operating and operating.state not in ("unknown","unavailable") else None
+    operating_state={1:"off",2:"starting",3:"working",4:"wait_on",5:"temp_ok",6:"no_program",7:"wait_time",8:"stop",9:"sunout"}.get(code,"unknown")
+    return {"operating_entity":operating_id,"operating_status":operating_state,"burning_state":status.state if status else None,"rate_kg_h":rate,"rate_entity":entity,"cost_per_hour":rate*p/q if rate is not None and kg and p is not None and q and q>0 else None,
             "heat_kw":rate*e*eff if rate is not None and kg and e and eff else None,"efficiency":eff,"fuel_energy_kwh":e}

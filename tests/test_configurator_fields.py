@@ -45,7 +45,7 @@ class ConfiguratorFieldsTests(unittest.TestCase):
         visible=m["generator_fields"]("heat_pump")
         self.assertNotIn("name",visible)
         self.assertNotIn("temperature_entity",visible)
-        self.assertNotIn("state_entity",visible)
+        self.assertIn("state_entity",visible)
         self.assertEqual(m["mapping_preferences"]({},auto,auto,visible),{})
         self.assertEqual(m["mapping_preferences"]({},{"power_entity":"sensor.manual"},auto,visible),{"power_entity":"sensor.manual"})
         self.assertEqual(m["mapping_preferences"]({"power_entity":"sensor.manual"},{},auto,visible),{})

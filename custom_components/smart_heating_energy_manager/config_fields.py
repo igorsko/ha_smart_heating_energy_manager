@@ -5,7 +5,7 @@ def generator_fields(kind):
     # Name, type and control are managed by the basic form; room temperature by zones.
     common={"efficiency","capacity_kw","enabled","energy_entity","power_entity"}
     if kind=="heat_pump":
-        return common|{"cop_curve"}
+        return common|{"cop_curve","state_entity"}
     runtime={"state_entity","manual_input_rate","active_states","inactive_states"}
     if kind=="resistance":
         return common|runtime

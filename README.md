@@ -63,3 +63,7 @@ When an instantaneous electrical input sensor is missing, recent Recorder counte
 ### Validated learned COP (0.3.19)
 
 The historical holdout includes a separate heat-pump-active error check. A learned COP requires explicit opt-in, sufficient heat-pump validation intervals, improvement over persistence and agreement between training and full-fit COP. Explicit configured COP curves and confirmed manual parameters take precedence. A single-generator estimate can be used in advisory calculations; multiple generators expose only an aggregate COP, never a per-head estimate. This is a model-derived estimate, not calorimetry. / Il COP appreso è utilizzabile solo dopo validazione storica e consenso; con più pompe di calore rimane un dato complessivo.
+
+### Operating status (0.3.20)
+
+WiNET display uses the dedicated state sensor and its state_code, independently of the burning binary sensor used for fuel calculations. Heat pumps distinguish mode, HVAC action, explicit operating sensors and recent consumption. A compressor signal alone does not prove heat delivery. Diagnostics list detected operating entities and readings. / Stato operativo e combustione sono distinti; i consumi recenti non dimostrano attività istantanea.

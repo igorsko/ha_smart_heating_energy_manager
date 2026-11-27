@@ -91,3 +91,29 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(m.advisory_generator(d,"hp",7).efficiency,4)
         self.assertEqual(m.effective_cop({**d,"technical_configured":True,"efficiency":2.5},7),(2.5,"manual"))
         self.assertEqual(m.effective_cop({**d,"cop_curve":"0=2\n10=4"},5),(3,"configured_curve"))
+
+    def test_winnet_starting_is_not_off(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace as N
+        d={"kind":"fuel","state_entity":"binary_sensor.burning","_operating_entity":"sensor.stove_state","active_states":"on","inactive_states":"off"}
+        states={"binary_sensor.burning":N(state="off"),"sensor.stove_state":N(state="Avvio",attributes={"state_code":2})}
+        row=m.fuel_live(d,states.get,datetime.now(timezone.utc))
+        self.assertEqual(row["operating_status"],"starting")
+        self.assertEqual(row["burning_state"],"off")
+        states["sensor.stove_state"].state="unavailable"
+        self.assertEqual(m.fuel_live(d,states.get,datetime.now(timezone.utc))["operating_status"],"unknown")
+
+    def test_heat_pump_operating_evidence(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace as N
+        now=datetime.now(timezone.utc)
+        d={"kind":"heat_pump","technical_configured":False,"control_entity":"climate.unit","state_entity":"binary_sensor.unit_compressor_running"}
+        states={"climate.unit":N(state="heat",attributes={}),"binary_sensor.unit_compressor_running":N(state="on")}
+        row=m.heat_pump_live(d,states.get,7,now)
+        self.assertEqual(row["operating_status"],"compressor_running")
+        self.assertFalse(row["heating_confirmed"])
+        d["state_entity"]="binary_sensor.unit_heating_active"
+        states[d["state_entity"]]=N(state="on")
+        self.assertTrue(m.heat_pump_live(d,states.get,7,now)["heating_confirmed"])
+        states["climate.unit"].state="off"
+        self.assertEqual(m.heat_pump_live(d,states.get,7,now)["operating_status"],"off")

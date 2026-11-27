@@ -89,3 +89,9 @@ class InputTests(unittest.TestCase):
         resolved,_=m.calibration_inputs({"hp":{"kind":"heat_pump","technical_configured":False,"control_entity":control.entity_id}},[control,*meters],lambda _:state)
         self.assertEqual(resolved["hp"]["energy_entity"],meters[0].entity_id)
         self.assertEqual(resolved["hp"]["energy_alternatives"],[meters[1].entity_id])
+
+    def test_winnet_status_and_combustion_are_distinct(self):
+        entries=[N(entity_id=e,unique_id=u,device_id="a",platform="winnet_stove",disabled_by=None) for e,u in [("climate.stove","a_climate"),("sensor.stove_stato","a_state"),("binary_sensor.stove_burning","a_burning")]]
+        resolved,_=m.calibration_inputs({"stove":{"kind":"fuel","control_entity":"climate.stove","technical_configured":False}},entries,lambda _:None)
+        self.assertEqual(resolved["stove"]["_operating_entity"],"sensor.stove_stato")
+        self.assertEqual(resolved["stove"]["state_entity"],"binary_sensor.stove_burning")

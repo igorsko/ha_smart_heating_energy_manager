@@ -79,3 +79,7 @@ Open Diagnostics and select Export diagnostics JSON or Copy diagnostics. The rep
 ### Data readiness (0.3.23)
 
 The dashboard and export select the newest timestamped advisory snapshot. Exact scoped Onecta heating counter identities remain discoverable before cloud state publication; historical values still require valid units. Recent counter estimates carry an observation timestamp and the cache is invalidated when meter mappings change. Diagnostic exports omit network identity and credential-named entities and include historical coverage by generator. / La diagnostica distingue aggiornamento del modello, copertura storica e letture correnti.
+
+### Startup and historical coverage (0.3.24)
+
+Known WiNET cumulative pellet and Onecta heating counters are resolved before live state publication, with historical units still checked. Historical OFF intervals can be bounded by a subsequent recorded known activation, assuming Recorder captured state transitions; unknown observations and unbounded stale periods are not accepted. WiNET burning OFF alone is not proof of shutdown. Advisory sensors refresh after startup and source changes with a debounce. / Aggiornamento dopo l'avvio e variazioni dei sensori; recupero dei periodi di spegnimento storicamente delimitati.

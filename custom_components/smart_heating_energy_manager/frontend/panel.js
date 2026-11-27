@@ -23,7 +23,7 @@ class SmartHeatingPanel extends HTMLElement {
       this.render();
     } catch(err) {
       form.querySelectorAll("button").forEach(b=>b.disabled=false);
-      form.querySelector(".error").textContent=err.message||String(err);
+      form.querySelector(".error").textContent=[err.code,err.message].filter(Boolean).join(": ")||String(err);
     }
   }
   async loadHistory(entry, ids) {
@@ -151,7 +151,8 @@ class SmartHeatingPanel extends HTMLElement {
         const temps=states.filter(s=>s.entity_id.startsWith("sensor.")&&(s.attributes.device_class==="temperature"||["°C","°F"].includes(s.attributes.unit_of_measurement)||s.entity_id===z.temperature));
         const selected=z.confirmed?z.temperature:(z.temperature_candidates?.length===1?z.temperature_candidates[0]:null);
         const selectedSources=z.confirmed?(z.sources||[]):(z.source_candidates||[]);
-        const available=states.filter(s=>["climate","switch","script"].includes(s.entity_id.split(".")[0]));
+        const configured=new Set((e.generators||[]).map(g=>g.control_entity).filter(Boolean));
+        const available=states.filter(s=>configured.has(s.entity_id)||(s.entity_id.startsWith("climate.")&&(s.attributes.hvac_modes||[]).some(m=>["heat","heat_cool","auto"].includes(m)))||(s.entity_id.startsWith("switch.")&&s.attributes.device_class==="heater"));
         if(selected && !temps.some(s=>s.entity_id===selected)) temps.push({entity_id:selected,attributes:{friendly_name:selected}});
         for(const id of selectedSources) if(!available.some(s=>s.entity_id===id)) available.push({entity_id:id,attributes:{friendly_name:id}});
         const order=(a,b)=>name(a).localeCompare(name(b));

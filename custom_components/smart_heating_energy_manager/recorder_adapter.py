@@ -4,7 +4,7 @@ from datetime import timedelta
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
-from .calibration import fit, validate_holdout
+from .calibration import fit, validate_holdout, cooling_consistency
 from .history_input import Sample, Series, MeanSeries, RateSeries, ConfirmedOffSeries, AlternativeSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
@@ -61,7 +61,7 @@ async def async_calibrate(hass, config):
     temp_ids=set(indoor_ids+[outdoor_id])
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
     ids=list(dict.fromkeys(ids+[e for _,g in devices for e in g.get("energy_alternatives",[])]))
-    ids=list(dict.fromkeys(ids+["sun.sun"]))
+    ids=list(dict.fromkeys(ids+["sun.sun"]+[e for ref in config.get("cooling_references",{}).values() for e in ref["entities"]]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -76,7 +76,7 @@ async def async_calibrate(hass, config):
         quality={"temperature":{e:temperature_coverage(_series(states.get(e,[]),"temperature"),start.timestamp(),end.timestamp(),step,age) for e in indoor_ids+[outdoor_id]},
                  "expected_intervals":int((end-start).total_seconds()//step)}
         counters,diagnostics,used=[],{},set()
-        cooling_off=[]
+        cooling_off={}
         for key,g in devices:
             choices=[]
             factor=g.get("efficiency",1) if g["kind"]=="resistance" else 1
@@ -145,7 +145,7 @@ async def async_calibrate(hass, config):
                 # Do not bridge a Recorder outage merely because the live state is OFF.
                 # Live state is not independent historical evidence.
                 series=ConfirmedOffSeries(observations)
-                cooling_off.append(series)
+                cooling_off[key]=series
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
                 if coverage>0 and off not in used and off not in temp_ids:
                     selected.append(("confirmed_off_only",off,series))
@@ -158,11 +158,18 @@ async def async_calibrate(hass, config):
                 counters.append((g["kind"],combined))
         from .passive_cooling import collect, analyze
         sun=ConfirmedOffSeries([Sample(s.last_updated.timestamp(),0. if s.state=="below_horizon" else 1. if s.state=="above_horizon" else None) for s in states.get("sun.sun",[])])
-        cooling=analyze(collect(indoor,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age)) if len(cooling_off)==len(devices) else {"status":"missing_off_evidence","samples":0}
+        def cooling_report(temperatures):
+            counts={}
+            missing=[key for key,_ in devices if key not in cooling_off]
+            if missing:
+                return {"status":"missing_off_evidence","samples":0,"missing_generators":missing}
+            rows=collect(temperatures,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age,counts)
+            return {**analyze(rows),"exclusions":counts,"sun_history_samples":len(sun.samples)}
+        cooling=cooling_report(indoor)
         zone_cooling={}
         for key,ref in config.get("cooling_references",{}).items():
             zone_indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in ref["entities"]])
-            row=analyze(collect(zone_indoor,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age)) if len(cooling_off)==len(devices) else {"status":"missing_off_evidence","samples":0}
+            row=cooling_report(zone_indoor)
             zone_cooling[key]={**ref,**row}
         if len(counters)!=len(devices):
             quality.update(complete_intervals=0,complete_fraction=0)
@@ -181,7 +188,7 @@ async def async_calibrate(hass, config):
                 known_cop=next(iter(cops))
                 result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "cooling_consistency":cooling_consistency(result,cooling),"passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
 
 

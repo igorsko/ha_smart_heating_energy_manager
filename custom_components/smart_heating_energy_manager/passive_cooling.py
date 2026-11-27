@@ -11,20 +11,40 @@ class CoolingSample:
     indoor_end: float
     outdoor: float
 
-def collect(indoor,outdoor,off_series,sun,start,end,step,age):
+def collect(indoor,outdoor,off_series,sun,start,end,step,age,diagnostics=None):
     """Require all generators OFF for two preceding hours and the interval.
     Require recorded nighttime throughout that same window.
     """
     if not off_series or sun is None or step<=0:
         return []
     rows=[]
+    counts={} if diagnostics is None else diagnostics
+    def bump(key):
+        counts[key]=counts.get(key,0)+1
+    sources=off_series.items() if isinstance(off_series,dict) else enumerate(off_series)
+    sources=list(sources)
     while start+step<=end:
         stop=start+step
         pre=start-7200
-        if all(s.counter_delta(pre,stop,age)==0 for s in (*off_series,sun)):
+        bump('examined')
+        night=sun.counter_delta(pre,stop,age)==0
+        failed=[key for key,s in sources if s.counter_delta(pre,stop,age)!=0]
+        if not night:
+            bump('night_not_confirmed')
+        else:
+            bump('night_confirmed')
+            for key in failed:
+                bump('off_not_confirmed:'+str(key))
+        if night and not failed:
+            bump('all_off_confirmed')
             a,b,t=indoor.value_at(start,age),indoor.value_at(stop,age),outdoor.average(start,stop,age)
             if all(v is not None and isfinite(v) for v in (a,b,t,indoor.average(start,stop,age))) and a-t>=3 and b>t:
                 rows.append(CoolingSample(start,step/3600,a,b,t))
+                bump('eligible')
+            elif any(v is None or not isfinite(v) for v in (a,b,t,indoor.average(start,stop,age))):
+                bump('temperature_missing')
+            else:
+                bump('temperature_difference_insufficient')
         start=stop
     return rows
 

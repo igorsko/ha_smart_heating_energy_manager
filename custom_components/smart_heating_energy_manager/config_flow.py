@@ -311,7 +311,6 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("calibration_locked",default=current.get("calibration_locked",False)): bool,
             vol.Required("reset_calibration",default=False): bool,
             vol.Required("history_enabled",default=current.get("history_enabled",False)): bool,
-            vol.Required("history_min_coverage",default=current.get("history_min_coverage",.7)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=1)),
             vol.Required("history_days",default=current.get("history_days",7)): vol.All(vol.Coerce(int),vol.Range(min=1,max=30)),
             vol.Required("history_interval_minutes",default=current.get("history_interval_minutes",60)): vol.All(vol.Coerce(int),vol.Range(min=15,max=360)),
             vol.Required("history_max_age_hours",default=current.get("history_max_age_hours",2)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=24)),

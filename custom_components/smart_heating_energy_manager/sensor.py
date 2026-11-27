@@ -91,6 +91,10 @@ class HeatingSensor(SensorEntity):
         from .bootstrap import economic_costs, building_estimate, winnet_parameters, declared_capacity, advisory_generator
         entries=list(er.async_get(self.hass).entities.values())
         devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
+        from .calibration_inputs import calibration_inputs
+        from .bootstrap import heat_pump_live
+        resolved,_=calibration_inputs(devices,entries,self.hass.states.get)
+        live={k:heat_pump_live(v,self.hass.states.get,outdoor,dt_util.utcnow()) for k,v in resolved.items() if v.get("kind")=="heat_pump"}
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
@@ -128,6 +132,7 @@ class HeatingSensor(SensorEntity):
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
+            "heat_pump_live":live,
             "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
             "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],

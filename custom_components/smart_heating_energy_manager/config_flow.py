@@ -282,11 +282,13 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             if user_input.pop("reset_calibration",False):
                 self.options["calibration_generation"] = self.options.get("calibration_generation",0)+1
             self.options.update(user_input)
-            for field in ("h",):
+            for field in ("h","building_area","building_profile"):
                 self.options[field] = user_input.get(field)
             return self._save()
         current = {**self.config_entry.data, **self.options}
         schema = vol.Schema({
+            vol.Optional("building_area",description={"suggested_value":current["building_area"]} if current.get("building_area") else {}):vol.All(vol.Coerce(float),vol.Range(min=5,max=10000)),
+            vol.Optional("building_profile",default=current.get("building_profile") or "medium"):vol.In(["low_loss","medium","high_loss"]),
             vol.Optional("h",description={"suggested_value":current["h"]} if current.get("h") else {}): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
             vol.Required("apply_learned",default=current.get("apply_learned",False)): bool,

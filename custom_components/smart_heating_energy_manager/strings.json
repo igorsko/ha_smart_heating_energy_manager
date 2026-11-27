@@ -153,7 +153,9 @@
           "history_min_coverage": "Minimum history coverage (fraction)",
           "apply_learned": "Use learned heat loss",
           "calibration_locked": "Lock calibration updates",
-          "reset_calibration": "Invalidate previous calibration"
+          "reset_calibration": "Invalidate previous calibration",
+          "building_area": "Heated floor area (m²)",
+          "building_profile": "Building heat loss profile (initial estimate)"
         },
         "title": "Calibration and advanced settings"
       },

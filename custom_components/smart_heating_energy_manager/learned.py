@@ -7,6 +7,20 @@ def fingerprint(config):
     fields={k:config.get(k) for k in ("indoor","outdoor","generators","indoor_reference","outdoor_reference")}
     return hashlib.sha256(json.dumps(fields,sort_keys=True).encode()).hexdigest()
 
+def validation_status(validation):
+    """Conservative provisional quality gate, not live forecast validation."""
+    if not isinstance(validation,dict) or validation.get("status")!="evaluated":
+        return "unvalidated"
+    keys=("mae_c","rmse_c","bias_c","baseline_mae_c","samples","training_samples")
+    if any(not isinstance(validation.get(k),(int,float)) or isinstance(validation[k],bool) or not isfinite(validation[k]) for k in keys):
+        return "unvalidated"
+    mae,rmse,bias,baseline,n,training=(validation[k] for k in keys)
+    if n<12 or training<24 or min(mae,rmse,baseline)<0 or rmse+1e-9<mae or abs(bias)>mae+1e-9:
+        return "unvalidated"
+    if mae<=.5 and rmse<=.75 and abs(bias)<=.3 and mae<baseline:
+        return "historically_validated"
+    return "poor_validation"
+
 def accepted(result,config):
     fit=result.get("fit")
     if result.get("status")!="estimated" or not isinstance(fit,dict):
@@ -18,16 +32,16 @@ def accepted(result,config):
             continue
         if not isinstance(value,(int,float)) or isinstance(value,bool) or not isfinite(value) or not lo<=value<=hi:
             return None
-    return {"fit":dict(fit),"calculated_at":result.get("calculated_at"),"fingerprint":fingerprint(config),"generation":config.get("calibration_generation",0)}
+    return {"fit":dict(fit),"validation":dict(result["validation"]) if isinstance(result.get("validation"),dict) else {}, "calculated_at":result.get("calculated_at"),"fingerprint":fingerprint(config),"generation":config.get("calibration_generation",0)}
 
 def current(record,config):
     if not isinstance(record,dict) or record.get("fingerprint")!=fingerprint(config) or record.get("generation")!=config.get("calibration_generation",0):
         return None
-    return accepted({"status":"estimated","fit":record.get("fit"),"calculated_at":record.get("calculated_at")},config)
+    return accepted({"status":"estimated","fit":record.get("fit"),"validation":record.get("validation"),"calculated_at":record.get("calculated_at")},config)
 
 def effective_loss(config,record):
     valid=current(record,config)
-    if config.get("apply_learned",False) and valid:
+    if config.get("apply_learned",False) and valid and validation_status(valid.get("validation"))=="historically_validated":
         return valid["fit"]["loss_w_k"],"learned"
     if config.get("h"):
         return config["h"],"manual"

@@ -23,3 +23,7 @@ Onecta heating-only cumulative counters are discovered across device records onl
 Calibration reports chronological out-of-sample one-step temperature MAE, RMSE, bias and persistence baseline MAE using historical measured inputs. At least 24 training and 12 valid holdout intervals are required. This diagnostic is not a live forecast validation or permission for automatic control. / La diagnostica confronta temperature ricostruite su dati storici esclusi dall'apprendimento; non abilita il controllo automatico.
 
 In 0.3.11 the panel displays historical validation errors and the persistence baseline, and heat-pump status distinguishes selected HVAC mode from reported activity. These are advisory diagnostics, not measured live forecast accuracy. / La plancia mostra gli errori di validazione storica e distingue la modalità Daikin dall'attività effettivamente comunicata.
+
+### Provisional historical quality gate
+
+Learned parameters remain stored for diagnostics but are used through effective_loss only after opt-in and historical holdout validation: at least 24 training and 12 validation samples, MAE <= 0.50 °C, RMSE <= 0.75 °C, absolute bias <= 0.30 °C and MAE strictly below the persistence baseline. Older records without validation fall back to the manual or initial model. Thresholds are provisional, not proof of live forecast accuracy. / I parametri appresi vengono utilizzati solo dopo la verifica storica e il consenso configurato; i limiti sono provvisori.

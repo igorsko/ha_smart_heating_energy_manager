@@ -146,17 +146,16 @@ class EnergyForecast(SensorEntity):
                 from .hourly_tariff import marginal_forecast, price_at
                 future=marginal_forecast(index.attributes,d) if index else {}
                 attrs["price_assumption"]="hourly_with_explicit_fallback" if future else "current_price_constant"
-                devices=d.get("generators",{})
+                from .bootstrap import declared_capacity, winnet_parameters, advisory_generator
+                entries=list(er.async_get(self.hass).entities.values())
+                devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
                 thermal_hours=[]
                 for h in hours:
                     gs=[]
                     for k,v in devices.items():
-                        if not ready(v):
-                            continue
-                        eff=v["efficiency"]
-                        if v["kind"]=="heat_pump":
-                            eff,_=cop_at(parse_curve(v.get("cop_curve","")),h["temperature_c"],eff)
-                        gs.append(Generator(k,v["kind"],eff,v["capacity_kw"],v["fuel_price"],v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
+                        generator=advisory_generator(v,k,h["temperature_c"])
+                        if generator is not None:
+                            gs.append(generator)
                     stamp=dt_util.parse_datetime(h["datetime"]).astimezone(timezone.utc).replace(minute=0,second=0,microsecond=0).isoformat()
                     pv=solar.get(stamp)
                     hourly_price,origin=price_at(h["datetime"],future,price,price_source)

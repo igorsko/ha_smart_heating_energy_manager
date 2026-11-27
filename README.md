@@ -43,3 +43,7 @@ Calibration requests the initial historical state from Recorder. Explicit OFF ob
 ### Generator readiness (0.3.14)
 
 Distinguish incomplete technical parameters from insufficient confirmed capacity. Onboarding placeholder ratings are not real equipment ratings. Economic comparison can remain provisional even when capacity-based recommendations are unavailable. / La plancia distingue parametri mancanti e potenza insufficiente, senza attribuire potenze nominali arbitrarie.
+
+### Declared thermal capacity (0.3.15)
+
+Explicit rated useful heating output from the selected device can enable provisional advisory recommendations and forecasts. Confirmed manual ratings take precedence. Generic electrical power, other devices and conflicting ratings are excluded. Nominal output is not measured available heat at the current outdoor temperature; incomplete efficiency inputs remain estimates. / La potenza termica nominale dichiarata viene distinta dalla potenza elettrica assorbita; le raccomandazioni restano consultive e provvisorie.

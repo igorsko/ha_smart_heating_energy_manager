@@ -35,3 +35,17 @@ class BootstrapTests(unittest.TestCase):
         self.assertAlmostEqual(row["estimated_burning_cost_per_hour"],.8404*7.79/15)
         self.assertEqual(row["source"],"winnet_estimated")
         self.assertEqual(m.winnet_parameters({**d,"technical_configured":True},entries,states.get)["fuel_price"],0)
+
+    def test_declared_capacity_is_not_electrical_input(self):
+        from types import SimpleNamespace as N
+        d={"kind":"heat_pump","technical_configured":False,"control_entity":"climate.unit","capacity_kw":1}
+        entries=[N(entity_id=e,device_id=device,platform="example",disabled_by=None) for e,device in [("climate.unit","a"),("sensor.unit_power","a"),("sensor.unit_rated_heat_output","a"),("sensor.other_rated_heat_output","b")]]
+        states={"sensor.unit_power":N(state=900,attributes={"unit_of_measurement":"W"}),"sensor.unit_rated_heat_output":N(state=2500,attributes={"unit_of_measurement":"W"}),"sensor.other_rated_heat_output":N(state=9,attributes={"unit_of_measurement":"kW"})}
+        g=m.declared_capacity(d,entries,states.get)
+        self.assertEqual(g["capacity_kw"],2.5)
+        self.assertEqual(g["_capacity_origin"],"declared")
+        self.assertEqual(m.advisory_generator(g,"hp").efficiency,3)
+        self.assertEqual(d["capacity_kw"],1)
+        states.pop("sensor.unit_rated_heat_output")
+        self.assertIsNone(m.advisory_generator(m.declared_capacity(d,entries,states.get),"hp"))
+        self.assertEqual(m.declared_capacity({**d,"technical_configured":True},entries,states.get)["capacity_kw"],1)

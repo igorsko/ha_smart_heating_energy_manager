@@ -88,6 +88,9 @@ class HeatingSensor(SensorEntity):
         zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in zones.items() if z.get("confirmed") and not z.get("outdoor")}
         from .thermal_groups import groups
         thermal_groups=groups(zones,self._temperature)
+        from .bootstrap import economic_costs, building_estimate, winnet_parameters, declared_capacity, advisory_generator
+        entries=list(er.async_get(self.hass).entities.values())
+        devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
@@ -96,18 +99,13 @@ class HeatingSensor(SensorEntity):
         else:
             h = finite(loss)
             demand = max(0, indoor-outdoor)*h/1000 if indoor is not None and outdoor is not None and h is not None and h>0 else None
-            devices = d.get("generators", {})
             generators=[]
             for k,v in devices.items():
-                if not ready(v):
+                generator=advisory_generator(v,k,outdoor)
+                if generator is None:
                     continue
-                efficiency=v["efficiency"]
-                origin="manual"
-                if v["kind"]=="heat_pump":
-                    efficiency,origin=cop_at(parse_curve(v.get("cop_curve","")),outdoor,efficiency)
-                efficiencies[k]={"value":efficiency,"source":origin}
-                generators.append(Generator(k,v["kind"],efficiency,v["capacity_kw"],v["fuel_price"],
-                    v["fuel_quantity"],v["fuel_energy_kwh"],v["enabled"]))
+                efficiencies[k]={"value":generator.efficiency,"source":"configured" if ready(v) else "estimated"}
+                generators.append(generator)
             candidates = rank_generators(generators, price, demand)
             recommendation = ("unknown" if demand is None else "none" if demand == 0 else
                               devices[candidates[0][0]]["name"] if candidates else "generator_parameters_pending" if any(capacity_status(v,demand) in ("parameters_pending","capacity_unknown") for v in devices.values()) else "no_suitable_generator")
@@ -117,23 +115,21 @@ class HeatingSensor(SensorEntity):
         result["electricity_price"] = price
         self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
-        from .bootstrap import economic_costs, building_estimate, winnet_parameters
-        economic_devices={k:winnet_parameters(v,er.async_get(self.hass).entities.values(),self.hass.states.get)
-                          for k,v in d.get("generators",{}).items()}
-        economic=economic_costs(economic_devices,price)
+        economic=economic_costs(devices,price)
         _,initial_capacity=building_estimate(d)
         from .history_quality import readiness
         from .learned import current
         valid=current(learned,ref) if model_source=="learned" else None
         capacity=valid["fit"]["capacity_kwh_k"] if valid else d.get("thermal_capacity") or initial_capacity
         quality=readiness(count,len(indoor_ids),outdoor,finite(loss),finite(capacity),price)
-        self._attr_extra_state_attributes = {"model_readiness":quality,"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"mode": "advisory", "price_source": source,
+        self._attr_extra_state_attributes = {"model_readiness":quality,"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"effective_capacity_kwh_k":capacity,"capacity_origin":"learned" if valid else "manual" if d.get("thermal_capacity") else "estimated" if initial_capacity is not None else "unknown","mode": "advisory", "price_source": source,
             "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,
             "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
-            "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in d.get("generators",{}).items()},
+            "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
+            "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "diagnostic": {"indoor": "ok" if indoor is not None else "missing_temperature", "outdoor": "ok" if outdoor is not None else "missing_temperature", "tariff": "ok" if price is not None else "configure_tariff", "loss": "ok" if finite(loss) is not None and finite(loss)>0 else "configure_model", "index_enabled": bool(d.get("use_index")), "index_available": raw_index is not None},
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}

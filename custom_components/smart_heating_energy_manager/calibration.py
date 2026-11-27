@@ -132,7 +132,7 @@ def validate_holdout(intervals, known_cop=None, settings=None):
     model = fit(samples[:-count], cfg, known_cop)
     if model is None:
         return {"status":"unidentifiable_training"}
-    errors, baseline = [], []
+    errors, baseline, hp_errors, hp_baseline = [], [], [], []
     h = model.loss_w_k/1000
     c = model.capacity_kwh_k
     for s in samples[-count:]:
@@ -148,6 +148,9 @@ def validate_holdout(intervals, known_cop=None, settings=None):
         predicted = s.outdoor+(s.indoor_start-s.outdoor)*decay+heat*(-math.expm1(-h*s.hours/c))/h
         errors.append(predicted-s.indoor_end)
         baseline.append(abs(s.indoor_end-s.indoor_start))
+        if s.hp_kwh>0:
+            hp_errors.append(predicted-s.indoor_end)
+            hp_baseline.append(abs(s.indoor_end-s.indoor_start))
     if len(errors)<12:
         return {"status":"insufficient_holdout","samples":len(errors)}
     return {"status":"evaluated","training_samples":model.samples,"samples":len(errors),
@@ -155,4 +158,7 @@ def validate_holdout(intervals, known_cop=None, settings=None):
             "rmse_c":math.sqrt(sum(e*e for e in errors)/len(errors)),
             "bias_c":sum(errors)/len(errors),
             "baseline_mae_c":sum(baseline)/len(baseline),
+            "hp_samples":len(hp_errors),"hp_mae_c":sum(abs(e) for e in hp_errors)/len(hp_errors) if hp_errors else None,
+            "hp_baseline_mae_c":sum(hp_baseline)/len(hp_baseline) if hp_baseline else None,
+            "training_cop":model.cop,"training_cop_source":model.cop_source,
             "method":"chronological_one_step_measured_inputs"}

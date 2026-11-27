@@ -50,10 +50,9 @@ def rank_generators(generators, electricity, demand):
 
 def capacity_status(data, demand):
     """Do not treat onboarding placeholders as actual heating capacity."""
-    from .onboarding import ready
     if not data.get("enabled",True):
         return "disabled"
-    if not ready(data):
+    if not data.get("technical_configured",True):
         return "parameters_pending"
     capacity=data.get("capacity_kw")
     if not isinstance(capacity,(int,float)) or isinstance(capacity,bool) or not math.isfinite(capacity) or capacity<=0:

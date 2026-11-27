@@ -11,3 +11,8 @@ def eligible(entity_id, attrs, configured=False, diagnostic=False):
 
 def configured_sources(generators):
     return {g["control_entity"] for g in generators.values() if g.get("control_entity")}
+
+
+def zone_candidates(hass,generators):
+    configured=configured_sources(generators)
+    return sorted(s.entity_id for s in hass.states.async_all() if eligible(s.entity_id,s.attributes,s.entity_id in configured))

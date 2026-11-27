@@ -165,5 +165,22 @@ def calibration_inputs(devices, entries, read):
         if ready(original) and not vertigo_request:
             usable=True
         report[key]={"usable":usable,"provisional":not ready(original),"reason":None if usable else "missing_meter_or_confirmed_runtime" if g.get("kind")=="resistance" else "missing_energy_source","candidates":[{"entity":e.entity_id,"unit":s.attributes.get("unit_of_measurement"),"state_class":s.attributes.get("state_class")} for e in siblings if e.entity_id.startswith("sensor.") and (s:=read(e.entity_id)) and s.attributes.get("unit_of_measurement") in ("Wh","kWh","MWh","W","kW","MW")],"entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity","off_only_entity") if g.get(k)}}
+        # Inventory includes unavailable and disabled entities; only enabled, scoped
+        # siblings above are eligible for automatic calculation mappings.
+        related={e.entity_id:e for e in siblings}
+        if control:
+            for e in entries:
+                if control.device_id and e.device_id==control.device_id:
+                    related[e.entity_id]=e
+        for field in ("control_entity","state_entity","power_entity","energy_entity","fuel_rate_entity","fuel_mass_entity","_operating_entity"):
+            entity=g.get(field)
+            if entity:
+                related.setdefault(entity,next((e for e in entries if e.entity_id==entity),None))
+        inventory=[]
+        for entity,entry in sorted(related.items()):
+            s=read(entity)
+            attrs=s.attributes if s else {}
+            inventory.append({"entity":entity,"state":str(s.state) if s else None,"unit":attrs.get("unit_of_measurement"),"device_class":attrs.get("device_class"),"state_class":attrs.get("state_class"),"disabled":bool(getattr(entry,"disabled_by",None)),"registered":entry is not None,"platform":getattr(entry,"platform",None)})
+        g["_inventory"]=inventory
         result[key]=g
     return result,report

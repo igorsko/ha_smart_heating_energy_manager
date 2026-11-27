@@ -5,11 +5,15 @@ from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
 from .model import finite, electricity_price, estimate
 from .onboarding import ready
+from .temperature_zones import resolve, average_temperature
+from .areas import discover_areas, zone_view
 from .thermal_zones import parse_curve, cop_at, zone_status
 from .generators import Generator, rank_generators
 
 SCAN_INTERVAL = timedelta(seconds=60)
 SENSORS = {
+    "indoor_average": ("Average indoor temperature", "°C"),
+    "outdoor_temperature": ("Outdoor temperature", "°C"),
     "heat_demand": ("Estimated heat demand", "kW"),
     "heat_pump_cost": ("Heat pump thermal cost", "EUR/kWh"),
     "pellet_cost": ("Pellet thermal cost", "EUR/kWh"),
@@ -21,7 +25,7 @@ SENSORS = {
 
 async def async_setup_entry(hass, entry, async_add_entities):
     specs = SENSORS if "cop" in entry.data and "generators" not in entry.options else {
-        k:v for k,v in SENSORS.items() if k in ("heat_demand","electricity_price","recommended_source")
+        k:v for k,v in SENSORS.items() if k in ("heat_demand","electricity_price","recommended_source","indoor_average","outdoor_temperature")
     }
     async_add_entities([HeatingSensor(entry, key, name, unit) for key, (name, unit) in specs.items()], True)
     config = {**entry.data, **entry.options}
@@ -64,8 +68,11 @@ class HeatingSensor(SensorEntity):
         price, source = electricity_price(index.state if index else None,
             index.attributes.get("unit_of_measurement") if index else None,
             d.get("fixed"), d.get("spread",0), d.get("losses",0), d.get("variable",0), d.get("tax",0), d.get("vat",0))
-        indoor, outdoor = self._temperature(d.get("indoor")), self._temperature(d.get("outdoor"))
-        zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in d.get("zones",{}).items() if z.get("confirmed")}
+        zones=zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor"))
+        indoor_ids,outdoor_id=resolve(zones,d.get("indoor"),d.get("outdoor"))
+        indoor,count=average_temperature(indoor_ids,self._temperature)
+        outdoor=self._temperature(outdoor_id)
+        zone_models={k:zone_status(z,self._temperature(z.get("temperature")),outdoor) for k,z in zones.items() if z.get("confirmed") and not z.get("outdoor")}
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
@@ -90,11 +97,14 @@ class HeatingSensor(SensorEntity):
             recommendation = ("unknown" if demand is None else "none" if demand == 0 else
                               devices[candidates[0][0]]["name"] if candidates else "no_suitable_generator")
             result = {"heat_demand": demand, "recommended_source": recommendation}
+        result["indoor_average"] = round(indoor,2) if indoor is not None else None
+        result["outdoor_temperature"] = outdoor
         result["electricity_price"] = price
         self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
             "thermal_model": model_source, "loss_w_k": loss,
+            "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,
             "zones": zone_models, "efficiencies": efficiencies,
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}

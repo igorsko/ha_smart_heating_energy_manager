@@ -4,7 +4,7 @@ Never infer missing heat input as zero. Preserve configured meter mappings.
 """
 from .model import finite
 from .onboarding import ready
-from .discovery import suggest
+from .discovery import suggest, winnet_siblings
 
 def calibration_inputs(devices, entries, read):
     entries=list(entries)
@@ -19,14 +19,16 @@ def calibration_inputs(devices, entries, read):
             for e in siblings:
                 if not e.entity_id.startswith(("sensor.","binary_sensor.")):
                     continue
-                if not (e.entity_id.endswith(suffixes) or e.unique_id.endswith(suffixes)):
+                if not (e.entity_id.endswith(suffixes) or str(getattr(e,"unique_id","")).endswith(suffixes)):
                     continue
                 s=read(e.entity_id)
                 if s and s.attributes.get("unit_of_measurement") in units and (not classes or s.attributes.get("state_class") in classes):
                     matches.append(e.entity_id)
             return matches[0] if len(matches)==1 else None
-        if g.get("kind")=="fuel" and control and control.platform=="winnet_stove":
-            mapping=suggest(entries,control.device_id) if control.device_id else {}
+        stove=winnet_siblings(entries,g) if g.get("kind")=="fuel" else []
+        if stove:
+            siblings=stove
+            mapping=suggest(entries,stove[0].device_id)
             mass=unique(("_estimated_pellet_consumed","_pellet_pellet_used"),("kg",),("total","total_increasing"))
             if not g.get("fuel_mass_entity") and mass:
                 g.update(fuel_mass_entity=mass,fuel_mass_unit="kg",fuel_mass_estimated=True)
@@ -64,6 +66,29 @@ def calibration_inputs(devices, entries, read):
                     if candidate:
                         g["energy_entity"]=candidate
                         break
+            if not g.get("energy_entity") and g["kind"]=="heat_pump":
+                # Localized entity names and integration translation keys.
+                import re
+                for period in (("yearly","annual","annuale","anno"),("monthly","mensile","mese"),("weekly","settimanale","settimana"),("daily","giornaliero","giorno")):
+                    matches=[]
+                    for e in siblings:
+                        s=read(e.entity_id)
+                        if not s or not e.entity_id.startswith("sensor.") or s.attributes.get("unit_of_measurement") not in ("Wh","kWh","MWh"):
+                            continue
+                        if s.attributes.get("state_class") not in ("total","total_increasing"):
+                            continue
+                        name=" ".join(str(x or "").lower() for x in (e.entity_id,getattr(e,"translation_key",None),getattr(e,"unique_id",None),s.attributes.get("friendly_name")))
+                        words=set(re.split(r"[^a-z0-9]+",name))
+                        if words.intersection(("heating","riscaldamento")) and words.intersection(period) and not words.intersection(("cooling","raffrescamento")):
+                            matches.append(e.entity_id)
+                    if len(matches)==1:
+                        g["energy_entity"]=matches[0]
+                        break
+            if g["kind"]=="resistance":
+                from .onboarding import suggest_sensors
+                for field,value in suggest_sensors(siblings,read,"resistance").items():
+                    if not g.get(field):
+                        g[field]=value
             if not ready(original):
                 g["efficiency"]=3.0 if g["kind"]=="heat_pump" else 1.0
         meter=bool(g.get("energy_entity") or g.get("power_entity"))

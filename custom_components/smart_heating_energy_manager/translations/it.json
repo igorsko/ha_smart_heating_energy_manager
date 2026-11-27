@@ -26,7 +26,8 @@
           "advanced_tariff": "Componenti tariffarie avanzate",
           "zone_thermal": "Parametri termici delle zone",
           "energy_forecast": "Energia e previsioni",
-          "dhw": "Acqua calda sanitaria (ACS)"
+          "dhw": "Acqua calda sanitaria (ACS)",
+          "joint_plan": "Pianificazione energetica congiunta"
         }
       },
       "add_generator": {
@@ -206,6 +207,21 @@
           "rated_kw": "Potenza nominale (kW)",
           "minimum_c": "Temperatura minima di riferimento (°C)",
           "target_c": "Temperatura obiettivo di riferimento (°C)"
+        }
+      },
+      "joint_plan": {
+        "title": "Pianificazione energetica congiunta",
+        "description": "Simulazione consultiva a prezzi costanti. Inserisci il carico domestico esclusi riscaldamento e ACS. Nessun comando ai dispositivi.",
+        "data": {
+          "enabled": "Abilita simulazione",
+          "base_kw": "Carico domestico medio (kW)",
+          "export_price": "Valore immissione (€/kWh)",
+          "use_battery": "Includi batteria",
+          "capacity": "Capacità utile (kWh, opzionale se importata)",
+          "reserve": "Riserva minima (%)",
+          "charge_kw": "Potenza massima carica (kW)",
+          "discharge_kw": "Potenza massima scarica (kW)",
+          "efficiency": "Rendimento per direzione (0–1)"
         }
       }
     },

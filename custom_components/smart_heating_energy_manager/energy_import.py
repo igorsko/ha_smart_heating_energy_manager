@@ -55,6 +55,7 @@ def snapshot(prefs, read):
     return {"pv_kw":pv if pv is not None and pv>=0 else None,
             "home_kw":home if home is not None and home>=0 else None,"grid_net_kw":grid_net,"export_kw":max(0,-grid_net) if grid_net is not None else None,
             "battery_net_kw":battery_net,"battery_soc":soc,
+            "battery_capacity_kwh":sum(c for _,c in socs) if socs and all(c is not None and c>0 for _,c in socs) else None,
             "energy_dashboard_sources":{kind:[{k:v for k,v in s.items() if k.startswith("stat_") or k=="config_entry_solar_forecast"} for s in group] for kind,group in (("solar",solar),("grid",grid),("battery",batteries))}}
 
 async def async_snapshot(hass):

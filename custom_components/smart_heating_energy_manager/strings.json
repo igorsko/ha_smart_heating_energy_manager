@@ -26,7 +26,8 @@
           "advanced_tariff": "Advanced tariff components",
           "zone_thermal": "Zone thermal settings",
           "energy_forecast": "Energy and forecast",
-          "dhw": "Domestic hot water (DHW)"
+          "dhw": "Domestic hot water (DHW)",
+          "joint_plan": "Joint energy planning"
         }
       },
       "add_generator": {
@@ -206,6 +207,21 @@
           "rated_kw": "Rated power (kW)",
           "minimum_c": "Minimum reference temperature (°C)",
           "target_c": "Target reference temperature (°C)"
+        }
+      },
+      "joint_plan": {
+        "title": "Joint energy planning",
+        "description": "Advisory simulation at constant prices. Enter household load excluding heating and DHW. No device commands.",
+        "data": {
+          "enabled": "Enable simulation",
+          "base_kw": "Average household base load (kW)",
+          "export_price": "Export value (€/kWh)",
+          "use_battery": "Include battery",
+          "capacity": "Usable capacity (kWh, optional if imported)",
+          "reserve": "Minimum reserve (%)",
+          "charge_kw": "Maximum charge power (kW)",
+          "discharge_kw": "Maximum discharge power (kW)",
+          "efficiency": "One-way efficiency (0–1)"
         }
       }
     },

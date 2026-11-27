@@ -27,7 +27,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         self.devices = dict(self.config_entry.options.get("generators", self.config_entry.data.get("generators", {})))
         self.options = dict(self.config_entry.options)
         return self.async_show_menu(step_id="init", menu_options=[
-            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "dhw", "advanced_settings", "display", "finish"])
+            "zones", "zone_thermal", "add_generator", "discover_winnet", "edit_generator", "advanced_generator", "remove_generator", "building", "tariff", "advanced_tariff", "energy_forecast", "joint_plan", "dhw", "advanced_settings", "display", "finish"])
 
     async def async_step_zones(self,user_input=None):
         from .areas import discover_areas
@@ -310,6 +310,27 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             optional("battery_soc"):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="battery")),
             optional("weather"):selector.EntitySelector(selector.EntitySelectorConfig(domain="weather")),
             optional("forecast_target"):vol.All(vol.Coerce(float),vol.Range(min=5,max=35))
+        }))
+
+    async def async_step_joint_plan(self,user_input=None):
+        current=self.options.get("joint_plan",{})
+        if user_input is not None:
+            self.options["joint_plan"]=dict(user_input)
+            return self._save()
+        def opt(k):
+            return vol.Optional(k,description={"suggested_value":current[k]} if current.get(k) is not None else {})
+        def numeric(lo,hi):
+            return vol.All(vol.Coerce(float),vol.Range(min=lo,max=hi))
+        return self.async_show_form(step_id="joint_plan",data_schema=vol.Schema({
+            vol.Required("enabled",default=current.get("enabled",False)):bool,
+            opt("base_kw"):numeric(0,50),
+            opt("export_price"):numeric(0,10),
+            vol.Required("use_battery",default=current.get("use_battery",False)):bool,
+            opt("capacity"):numeric(.1,1000),
+            opt("reserve"):numeric(0,100),
+            opt("charge_kw"):numeric(.01,100),
+            opt("discharge_kw"):numeric(.01,100),
+            opt("efficiency"):numeric(.1,1),
         }))
 
     async def async_step_dhw(self,user_input=None):

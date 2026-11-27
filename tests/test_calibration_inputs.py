@@ -59,7 +59,7 @@ class InputTests(unittest.TestCase):
         self.assertEqual(resolved["hp"]["energy_entity"],entries[1].entity_id)
         self.assertTrue(report["hp"]["usable"])
 
-    def test_vertigo_runtime_requires_rating(self):
+    def test_vertigo_request_is_not_measured_runtime(self):
         entry=N(entity_id="switch.unit_heating",unique_id="heat",device_id="a",platform="olimpia_vertigo",disabled_by=None)
         devices={"r":{"kind":"resistance","technical_configured":False,"control_entity":entry.entity_id}}
         resolved,report=m.calibration_inputs(devices,[entry],lambda _:None)
@@ -67,5 +67,8 @@ class InputTests(unittest.TestCase):
         self.assertEqual(resolved["r"]["state_entity"],entry.entity_id)
         devices["r"]["manual_input_rate"]=1.5
         resolved,report=m.calibration_inputs(devices,[entry],lambda _:None)
+        self.assertFalse(report["r"]["usable"])
+        self.assertNotIn("manual_input_rate",resolved["r"])
+        devices["r"]["power_entity"]="sensor.dedicated_power"
+        _,report=m.calibration_inputs(devices,[entry],lambda _:None)
         self.assertTrue(report["r"]["usable"])
-        self.assertEqual(resolved["r"]["active_states"],"on")

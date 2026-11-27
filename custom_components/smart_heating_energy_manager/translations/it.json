@@ -24,7 +24,8 @@
           "advanced_generator": "Parametri tecnici dei generatori",
           "advanced_settings": "Calibrazione e impostazioni avanzate",
           "advanced_tariff": "Componenti tariffarie avanzate",
-          "zone_thermal": "Parametri termici delle zone"
+          "zone_thermal": "Parametri termici delle zone",
+          "energy_forecast": "Energia e previsioni"
         }
       },
       "add_generator": {
@@ -179,6 +180,17 @@
         "data": {
           "target_c": "Temperatura desiderata (°C)",
           "loss_w_k": "Coefficiente di dispersione (W/K)"
+        }
+      },
+      "energy_forecast": {
+        "title": "Energia e previsioni",
+        "description": "Tutti i campi sono facoltativi. Seleziona le entità già disponibili in Home Assistant.",
+        "data": {
+          "pv_power": "Produzione fotovoltaica",
+          "grid_export": "Potenza immessa in rete (positiva in esportazione)",
+          "battery_soc": "Carica batteria (%)",
+          "weather": "Previsioni meteo orarie",
+          "forecast_target": "Temperatura interna desiderata (°C)"
         }
       }
     },

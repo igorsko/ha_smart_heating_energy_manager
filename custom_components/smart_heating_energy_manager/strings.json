@@ -194,7 +194,8 @@
           "weather": "Hourly weather forecast",
           "forecast_target": "Desired indoor temperature (°C)",
           "thermal_capacity": "Manual thermal capacity (kWh/K)",
-          "preheat_margin": "Maximum preheat scenario increase (°C)"
+          "preheat_margin": "Maximum preheat scenario increase (°C)",
+          "solar_gain_factor": "Passive solar gain (thermal kWh per PV kWh; 0 = disabled)"
         }
       },
       "dhw": {

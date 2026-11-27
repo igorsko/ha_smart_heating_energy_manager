@@ -25,7 +25,8 @@
           "advanced_settings": "Calibration and advanced settings",
           "advanced_tariff": "Advanced tariff components",
           "zone_thermal": "Zone thermal settings",
-          "energy_forecast": "Energy and forecast"
+          "energy_forecast": "Energy and forecast",
+          "dhw": "Domestic hot water (DHW)"
         }
       },
       "add_generator": {
@@ -192,12 +193,27 @@
           "weather": "Hourly weather forecast",
           "forecast_target": "Desired indoor temperature (°C)"
         }
+      },
+      "dhw": {
+        "title": "Domestic hot water",
+        "description": "Optional advisory module. Does not change the heater or sanitation cycles. Clear the entity to disable.",
+        "data": {
+          "entity": "Water heater entity",
+          "temperature": "Water temperature sensor",
+          "power": "Measured power",
+          "energy": "Energy meter",
+          "litres": "Tank capacity (litres)",
+          "rated_kw": "Rated power (kW)",
+          "minimum_c": "Minimum reference temperature (°C)",
+          "target_c": "Target reference temperature (°C)"
+        }
       }
     },
     "error": {
       "invalid_generator": "Invalid generator parameters",
       "no_discovered_entities": "No compatible entities",
-      "no_areas": "No Home Assistant areas configured"
+      "no_areas": "No Home Assistant areas configured",
+      "invalid_dhw_temperatures": "Minimum temperature must not exceed target."
     }
   },
   "selector": {

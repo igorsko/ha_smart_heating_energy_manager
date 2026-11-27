@@ -22,7 +22,8 @@
           "display": "Interfaccia",
           "zones": "Zone termiche",
           "advanced_generator": "Parametri tecnici dei generatori",
-          "advanced_settings": "Calibrazione e impostazioni avanzate"
+          "advanced_settings": "Calibrazione e impostazioni avanzate",
+          "advanced_tariff": "Componenti tariffarie avanzate"
         }
       },
       "add_generator": {
@@ -79,12 +80,7 @@
         "data": {
           "pun": "Sensore PUN o indice",
           "use_index": "Utilizza indice",
-          "fixed": "Prezzo fisso tutto incluso",
-          "spread": "Spread fornitore",
-          "losses": "Frazione perdite di rete",
-          "variable": "Componenti variabili",
-          "tax": "Accise",
-          "vat": "Frazione IVA"
+          "fixed": "Prezzo fisso tutto incluso"
         }
       },
       "display": {
@@ -155,6 +151,19 @@
           "reset_calibration": "Invalida calibrazione precedente"
         },
         "title": "Calibrazione e parametri avanzati"
+      },
+      "advanced_tariff": {
+        "data": {
+          "pun": "Sensore PUN o indice",
+          "use_index": "Utilizza indice",
+          "fixed": "Prezzo fisso tutto incluso",
+          "spread": "Spread fornitore",
+          "losses": "Frazione perdite di rete",
+          "variable": "Componenti variabili",
+          "tax": "Accise",
+          "vat": "Frazione IVA"
+        },
+        "title": "Componenti tariffarie avanzate"
       }
     },
     "error": {

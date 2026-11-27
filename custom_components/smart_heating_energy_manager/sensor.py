@@ -117,8 +117,10 @@ class HeatingSensor(SensorEntity):
         result["electricity_price"] = price
         self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
-        from .bootstrap import economic_costs, building_estimate
-        economic=economic_costs(d.get("generators",{}),price)
+        from .bootstrap import economic_costs, building_estimate, winnet_parameters
+        economic_devices={k:winnet_parameters(v,er.async_get(self.hass).entities.values(),self.hass.states.get)
+                          for k,v in d.get("generators",{}).items()}
+        economic=economic_costs(economic_devices,price)
         _,initial_capacity=building_estimate(d)
         self._attr_extra_state_attributes = {"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"mode": "advisory", "price_source": source,
             "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,

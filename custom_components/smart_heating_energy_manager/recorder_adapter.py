@@ -159,9 +159,14 @@ async def async_calibrate(hass, config):
         from .passive_cooling import collect, analyze
         sun=ConfirmedOffSeries([Sample(s.last_updated.timestamp(),0. if s.state=="below_horizon" else 1. if s.state=="above_horizon" else None) for s in states.get("sun.sun",[])])
         cooling=analyze(collect(indoor,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age)) if len(cooling_off)==len(devices) else {"status":"missing_off_evidence","samples":0}
+        zone_cooling={}
+        for key,ref in config.get("cooling_references",{}).items():
+            zone_indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in ref["entities"]])
+            row=analyze(collect(zone_indoor,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age)) if len(cooling_off)==len(devices) else {"status":"missing_off_evidence","samples":0}
+            zone_cooling[key]={**ref,**row}
         if len(counters)!=len(devices):
             quality.update(complete_intervals=0,complete_fraction=0)
-            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality,"passive_cooling":cooling}
+            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality,"passive_cooling":cooling,"zone_cooling":zone_cooling}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         quality["complete_intervals"]=len(intervals)
         quality["generator_coverage"]={k:v["coverage"].get("combined",0) for k,v in diagnostics.items()}
@@ -176,7 +181,7 @@ async def async_calibrate(hass, config):
                 known_cop=next(iter(cops))
                 result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "passive_cooling":cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "passive_cooling":cooling,"zone_cooling":zone_cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
 
 

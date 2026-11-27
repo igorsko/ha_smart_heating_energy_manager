@@ -87,3 +87,7 @@ Known WiNET cumulative pellet and Onecta heating counters are resolved before li
 ### Passive cooling (0.3.25)
 
 Independent apparent time constant from historical nighttime periods (Recorder sun.sun below_horizon), all generator OFF evidence, and two hours of settling. Fixed indoor sensor membership. Chronological holdout with a two-hour gap and persistence baseline; no model override. Internal gains, residual heat and wind can bias the estimate, and nighttime does not prove absence of other gains. / Raffreddamento naturale: stima diagnostica indipendente, senza modifica automatica di H o C.
+
+### Multizone cooling (0.3.26)
+
+Separate apparent cooling time constants and chronological validation for each mapped indoor thermometer and explicit thermal group. All generators must be OFF, not just local generators; group means deduplicate shared thermometers. These are diagnostic apparent constants, not identified inter-zone heat transfer coefficients. / Modello di raffreddamento separato per zona e gruppo, senza nuovi campi di configurazione.

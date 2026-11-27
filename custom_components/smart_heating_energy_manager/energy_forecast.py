@@ -135,6 +135,7 @@ class EnergyForecast(SensorEntity):
                 future=marginal_forecast(index.attributes,d) if index else {}
                 attrs["price_assumption"]="hourly_with_explicit_fallback" if future else "current_price_constant"
                 devices=d.get("generators",{})
+                thermal_hours=[]
                 for h in hours:
                     gs=[]
                     for k,v in devices.items():
@@ -147,6 +148,7 @@ class EnergyForecast(SensorEntity):
                     stamp=dt_util.parse_datetime(h["datetime"]).astimezone(timezone.utc).replace(minute=0,second=0,microsecond=0).isoformat()
                     pv=solar.get(stamp)
                     hourly_price,origin=price_at(h["datetime"],future,price,price_source)
+                    thermal_hours.append({**h,"generators":gs,"pv_kwh":pv,"price":hourly_price})
                     for row in plan([h],loss,d.get("forecast_target"),gs,hourly_price):
                         row["electricity_price"]=hourly_price
                         row["price_source"]=origin
@@ -159,6 +161,22 @@ class EnergyForecast(SensorEntity):
                         row["potential_solar_overlap_kwh"]=round(min(electric,pv),3) if electric is not None and pv is not None else None
                         row["generator_name"]=devices.get(row["generator"],{}).get("name")
                         attrs["plan"].append(row)
+                from .learned import current
+                from .thermal_prediction import simulate
+                from .temperature_zones import average_temperature
+                record=current(self.hass.data[DOMAIN][self.entry_id]["learned"],ref)
+                capacity=record["fit"]["capacity_kwh_k"] if source=="learned" and record else d.get("thermal_capacity")
+                def read_temperature(entity):
+                    state=self.hass.states.get(entity)
+                    if not state:
+                        return None
+                    value=number(state.state)
+                    unit=state.attributes.get("unit_of_measurement")
+                    return value if unit=="°C" else (value-32)*5/9 if unit=="°F" and value is not None else None
+                ids=ref["indoor_reference"]
+                indoor,count=average_temperature(ids,read_temperature)
+                attrs["thermal_prediction"]=simulate(thermal_hours,indoor if count==len(ids) else None,loss,capacity,d.get("forecast_target"),d.get("preheat_margin") or 0,now)
+                attrs["thermal_prediction"]["parameter_source"]=source
                 status="estimated" if attrs["plan"] else "configure_model" if hours else "forecast_unavailable"
             except Exception:
                 _LOGGER.exception("Hourly weather forecast unavailable")

@@ -33,12 +33,12 @@ def winnet_parameters(data, entries, read):
     if data.get("kind")!="fuel" or ready(data):
         return dict(data)
     entries=list(entries)
-    control=next((e for e in entries if e.entity_id==data.get("control_entity")),None)
-    if not control or not control.device_id or control.platform!="winnet_stove":
+    from .discovery import winnet_siblings
+    siblings=winnet_siblings(entries,data)
+    if not siblings:
         return dict(data)
-    siblings=[e for e in entries if e.device_id==control.device_id and e.platform=="winnet_stove" and not e.disabled_by]
     def read_one(suffix, units):
-        matches=[e.entity_id for e in siblings if e.entity_id.endswith(suffix)]
+        matches=[e.entity_id for e in siblings if e.entity_id.endswith(suffix) or str(getattr(e,"unique_id","")).endswith(suffix)]
         if len(matches)!=1:
             return None,None
         s=read(matches[0])

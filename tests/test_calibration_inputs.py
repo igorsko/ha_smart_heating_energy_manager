@@ -33,3 +33,16 @@ class InputTests(unittest.TestCase):
         resolved,report=m.calibration_inputs(devices,[],lambda _:None)
         self.assertTrue(report["hp"]["usable"])
         self.assertEqual(resolved["hp"]["energy_entity"],"sensor.manual")
+
+    def test_localized_and_resistance_sources(self):
+        devices={"hp":{"kind":"heat_pump","technical_configured":False,"control_entity":"climate.hp"},
+                 "r":{"kind":"resistance","technical_configured":False,"control_entity":"switch.r"}}
+        entries=[N(entity_id=e,unique_id=e,device_id=d,platform=p,disabled_by=None) for e,d,p in [
+            ("climate.hp","a","daikin"),("sensor.hp_consumo_riscaldamento_annuale","a","daikin"),
+            ("sensor.hp_consumo_raffrescamento_annuale","a","daikin"),("switch.r","b","other"),
+            ("sensor.r_power","b","other")]]
+        states={e.entity_id:N(state="10",attributes={"unit_of_measurement":"W" if e.entity_id.endswith("_power") else "kWh","state_class":"total_increasing","device_class":"power" if e.entity_id.endswith("_power") else "energy"}) for e in entries if e.entity_id.startswith("sensor.")}
+        resolved,report=m.calibration_inputs(devices,entries,states.get)
+        self.assertEqual(resolved["hp"]["energy_entity"],"sensor.hp_consumo_riscaldamento_annuale")
+        self.assertEqual(resolved["r"]["power_entity"],"sensor.r_power")
+        self.assertTrue(report["r"]["usable"])

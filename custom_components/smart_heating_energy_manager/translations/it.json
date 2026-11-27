@@ -23,7 +23,8 @@
           "zones": "Zone termiche",
           "advanced_generator": "Parametri tecnici dei generatori",
           "advanced_settings": "Calibrazione e impostazioni avanzate",
-          "advanced_tariff": "Componenti tariffarie avanzate"
+          "advanced_tariff": "Componenti tariffarie avanzate",
+          "zone_thermal": "Parametri termici delle zone"
         }
       },
       "add_generator": {
@@ -128,7 +129,8 @@
           "level_entity": "Entità livello di potenza",
           "level_rates": "Consumi per livello (unità/h, una riga livello=consumo)",
           "fuel_mass_estimated": "Il contatore di massa è una stima",
-          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)"
+          "fuel_rate_entity": "Sensore consumo combustibile orario (es. kg/h)",
+          "cop_curve": "Curva COP (temperatura esterna °C=COP, una riga per punto)"
         }
       },
       "advanced_generator": {
@@ -164,6 +166,20 @@
           "vat": "Frazione IVA"
         },
         "title": "Componenti tariffarie avanzate"
+      },
+      "zone_thermal": {
+        "title": "Seleziona zona",
+        "data": {
+          "area": "Zona"
+        }
+      },
+      "zone_thermal_details": {
+        "title": "Comfort e dispersioni",
+        "description": "Entrambi i valori sono facoltativi. Inserisci la dispersione solo se nota.",
+        "data": {
+          "target_c": "Temperatura desiderata (°C)",
+          "loss_w_k": "Coefficiente di dispersione (W/K)"
+        }
       }
     },
     "error": {

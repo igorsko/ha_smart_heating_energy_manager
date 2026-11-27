@@ -49,3 +49,33 @@ class EnergyImportTests(unittest.TestCase):
         self.assertIsNone(data["pv_kw"])
         prefs={"energy_sources":[{"type":"solar","stat_rate":"sensor.a"},{"type":"home","stat_rate":"sensor.a"}]}
         self.assertIsNone(m.snapshot(prefs,lambda _:SimpleNamespace(state="100",attributes={"unit_of_measurement":"W"}))["pv_kw"])
+
+    def test_directional_and_capacity_discovery(self):
+        prefs={"energy_sources":[{"type":"solar","stat_energy_from":"sensor.solar_total"},{"type":"grid","stat_energy_from":"sensor.grid_total"},{"type":"battery","stat_energy_from":"sensor.discharge_total"}]}
+        states={k:SimpleNamespace(state=v,attributes={"unit_of_measurement":u,"device_class":c}) for k,v,u,c in [
+            ("sensor.site_production_ct_power",100,"W","power"),
+            ("sensor.site_consumption_ct_power",700,"W","power"),
+            ("sensor.site_battery_capacity",5000,"Wh","energy_storage"),
+            ("sensor.site_battery_soc",5,"%","battery"),
+            ("sensor.site_grid_import_power",600,"W","power"),
+            ("sensor.site_grid_export_power",0,"W","power")]}
+        pools={"sensor.solar_total":[k for k in states if "grid_" not in k],"sensor.grid_total":[k for k in states if "grid_" in k]}
+        data=m.snapshot(m.discover_power(prefs,states.get,lambda e:pools.get(e,[])),states.get)
+        self.assertEqual(data["battery_capacity_kwh"],5)
+        self.assertEqual(data["battery_soc"],5)
+        self.assertAlmostEqual(data["grid_net_kw"],.6)
+        self.assertAlmostEqual(data["battery_net_kw"],0)
+        self.assertEqual(data["energy_flow_origins"]["battery_net_kw"],"balance")
+    def test_missing_two_flows_not_guessed(self):
+        prefs={"energy_sources":[{"type":"solar","stat_rate":"sensor.pv"},{"type":"home","stat_rate":"sensor.home"},{"type":"grid"},{"type":"battery"}]}
+        states={k:SimpleNamespace(state=v,attributes={"unit_of_measurement":"W"}) for k,v in [("sensor.pv",100),("sensor.home",700)]}
+        data=m.snapshot(prefs,states.get)
+        self.assertIsNone(data["grid_net_kw"])
+        self.assertIsNone(data["battery_net_kw"])
+    def test_discharge_and_import_sign(self):
+        prefs={"energy_sources":[{"type":"grid","stat_rate":"sensor.grid"},{"type":"battery","stat_rate":"sensor.bat"},{"type":"solar","stat_rate":"sensor.pv"}]}
+        states={k:SimpleNamespace(state=v,attributes={"unit_of_measurement":"W"}) for k,v in [("sensor.grid",-100),("sensor.bat",300),("sensor.pv",500)]}
+        data=m.snapshot(prefs,states.get)
+        self.assertAlmostEqual(data["home_kw"],.7)
+        self.assertAlmostEqual(data["export_kw"],.1)
+        self.assertEqual(data["energy_flow_origins"]["home_kw"],"balance")

@@ -21,3 +21,10 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(g.rank_generators([], .2, 3),[])
     def test_unknown_demand(self):
         self.assertEqual(g.rank_generators([g.Generator("hp","heat_pump",4,6)], .2, None),[])
+
+    def test_capacity_diagnostics(self):
+        self.assertEqual(g.capacity_status({"technical_configured":False,"capacity_kw":1},2),"parameters_pending")
+        self.assertEqual(g.capacity_status({"capacity_kw":1},2),"capacity_insufficient")
+        self.assertEqual(g.capacity_status({"capacity_kw":3},2),"capacity_sufficient")
+        self.assertEqual(g.capacity_status({"enabled":False,"capacity_kw":3},2),"disabled")
+        self.assertEqual(g.capacity_status({},2),"capacity_unknown")

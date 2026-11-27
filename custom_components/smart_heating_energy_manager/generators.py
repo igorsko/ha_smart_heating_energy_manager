@@ -46,3 +46,17 @@ def rank_generators(generators, electricity, demand):
         if cost is not None:
             choices.append((g.identifier, cost))
     return sorted(choices, key=lambda item: (item[1], item[0]))
+
+
+def capacity_status(data, demand):
+    """Do not treat onboarding placeholders as actual heating capacity."""
+    if not data.get("enabled",True):
+        return "disabled"
+    if not data.get("technical_configured",True):
+        return "parameters_pending"
+    capacity=data.get("capacity_kw")
+    if not isinstance(capacity,(int,float)) or isinstance(capacity,bool) or not math.isfinite(capacity) or capacity<=0:
+        return "capacity_unknown"
+    if demand is None:
+        return "demand_unknown"
+    return "capacity_sufficient" if capacity>=demand else "capacity_insufficient"

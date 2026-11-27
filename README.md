@@ -39,3 +39,7 @@ Global per-source coverage is diagnostic rather than an exclusion threshold. Eac
 ### Stable Recorder states
 
 Calibration requests the initial historical state from Recorder. Explicit OFF observations may bridge an unchanged period only when bounded by recorded OFF evidence, with no intervening unknown or active state. This assumes Recorder captured transitions; it cannot prove continuity across an unrecorded outage. Live state alone is not used to extend historical coverage. Numeric energy and temperature freshness limits remain unchanged. / Gli stati OFF invariati possono essere utilizzati tra osservazioni storiche coerenti; non si estende lo storico usando il solo stato attuale.
+
+### Generator readiness (0.3.14)
+
+Distinguish incomplete technical parameters from insufficient confirmed capacity. Onboarding placeholder ratings are not real equipment ratings. Economic comparison can remain provisional even when capacity-based recommendations are unavailable. / La plancia distingue parametri mancanti e potenza insufficiente, senza attribuire potenze nominali arbitrarie.

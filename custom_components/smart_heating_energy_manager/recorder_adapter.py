@@ -156,3 +156,27 @@ async def async_calibrate(hass, config):
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
                 "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
+
+
+async def recent_heat_pump_power(hass, devices, now):
+    """Read a bounded history once for all missing instantaneous meters."""
+    from .history_input import recent_counter_power
+    meters={k:list(dict.fromkeys([e for e in [g.get("energy_entity"),*g.get("energy_alternatives",[])] if e])) for k,g in devices.items() if g.get("kind")=="heat_pump"}
+    ids=list(dict.fromkeys(e for values in meters.values() for e in values))
+    if not ids or "recorder" not in hass.config.components:
+        return {}
+    def calculate():
+        states=get_significant_states(hass,now-timedelta(hours=4),now,entity_ids=ids,
+            include_start_time_state=False,significant_changes_only=False,minimal_response=False,no_attributes=False)
+        result={}
+        for key,entities in meters.items():
+            for entity in entities:
+                if sum(entity in v for v in meters.values())!=1:
+                    continue
+                series=_series(states.get(entity,[]),"energy")
+                row=recent_counter_power(series.samples,now.timestamp())
+                if row:
+                    result[key]={**row,"power_entity":entity}
+                    break
+        return result
+    return await get_instance(hass).async_add_executor_job(calculate)

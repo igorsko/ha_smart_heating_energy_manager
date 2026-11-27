@@ -23,7 +23,7 @@ class SmartHeatingPanel extends HTMLElement {
       this.render();
     } catch(err) {
       form.querySelectorAll("button").forEach(b=>b.disabled=false);
-      form.querySelector(".error").textContent=err.message||String(err);
+      form.querySelector(".error").textContent=[err.code,err.message].filter(Boolean).join(": ")||String(err);
     }
   }
   async loadHistory(entry, ids) {
@@ -119,7 +119,7 @@ class SmartHeatingPanel extends HTMLElement {
       const metric=(v,u)=>v==null?"—":Number(v).toFixed(2)+" "+u;
       const energy='<article class="energy"><h2>'+icon("solar-power")+tr("Fotovoltaico e batteria","Solar PV and battery")+'</h2>'+detail(tr("FV attuale","Current PV"),metric(energyData.pv_kw,"kW"))+detail(tr("Batteria","Battery"),metric(energyData.battery_soc,"%"))+detail(tr("Immissione in rete","Grid export"),metric(energyData.export_kw,"kW"))+'</article>';
       const priceChart=this.chart(this._history[e.id],[{id:ids.electricity_price,axis:"price",color:"#48b8ed",label:tr("Prezzo marginale (€/kWh)","Marginal price (€/kWh)")}],tr("Storico non disponibile","History unavailable"));
-      const tariffs='<article class="tariffs"><h2>'+icon("lightning-bolt")+tr("Prezzo energia","Energy price")+'</h2>'+detail(tr("Prezzo elettricità marginale","Marginal electricity price"),val(ids.electricity_price))+detail(tr("Origine prezzo","Price source"),advisory.price_source||"—")+'<h3>'+tr("Andamento ultime 24 ore","Last 24 hours")+'</h3>'+priceChart+'</article>';
+      const tariffs='<article class="tariffs"><h2>'+icon("lightning-bolt")+tr("Prezzo energia","Energy price")+'</h2>'+detail(tr("PUN / indice attuale","Current price index"),metric(advisory.index_price,"€/kWh"))+detail(tr("Prezzo elettricità marginale","Marginal electricity price"),val(ids.electricity_price))+detail(tr("Origine prezzo","Price source"),advisory.price_source||"—")+(advisory.index_price!=null&&advisory.price_source!=="index"?'<p>'+tr("Indice rilevato: per utilizzarlo attiva la tariffa indicizzata nelle opzioni.","Index detected: enable indexed tariff in settings to use it.")+'</p>':"")+(val(ids.electricity_price)==="—"?'<p><a href="/config/integrations">'+tr("Configura tariffa elettrica","Configure electricity tariff")+'</a></p>':"")+'<h3>'+tr("Andamento ultime 24 ore","Last 24 hours")+'</h3>'+priceChart+'</article>';
       const history='<article class="history"><h2>'+icon("chart-line")+tr("Storico temperature e fabbisogno","Temperature and demand history")+'</h2>'+this.chart(this._history[e.id],[{id:ids.indoor_average,axis:"temp",color:"#f59e42",label:tr("Interna (°C)","Indoor (°C)")},{id:ids.outdoor_temperature,axis:"temp",color:"#48b8ed",label:tr("Esterna (°C)","Outdoor (°C)")},{id:ids.heat_demand,axis:"power",color:"#b38af3",label:tr("Fabbisogno (kW)","Demand (kW)")}],tr("Dati storici non disponibili","History unavailable"))+'</article>';
       const actions='<article class="actions"><h2>'+icon("lightning-bolt")+tr("Azioni rapide","Quick actions")+'</h2><button data-page="learning">'+tr("Modello e calibrazione","Model and calibration")+'</button><button data-page="generators">'+tr("Confronta generatori","Compare generators")+'</button><button data-page="forecast">'+tr("Previsioni e piano","Forecast and plan")+'</button><a href="/config/integrations">'+tr("Apri impostazioni","Open settings")+'</a></article>';
       const forecastRows=(energyData.plan||[]).map(h=>'<tr><td>'+html(new Date(h.datetime).toLocaleString(this._hass.language,{weekday:"short",hour:"2-digit",minute:"2-digit"}))+'</td><td>'+html(metric(h.outdoor_c,"°C"))+'</td><td>'+html(metric(h.heat_kw,"kW"))+'</td><td>'+html(h.generator_name||"—")+'</td><td>'+html(metric(h.cost_per_hour,"€/h"))+'</td></tr>').join("");
@@ -151,7 +151,8 @@ class SmartHeatingPanel extends HTMLElement {
         const temps=states.filter(s=>s.entity_id.startsWith("sensor.")&&(s.attributes.device_class==="temperature"||["°C","°F"].includes(s.attributes.unit_of_measurement)||s.entity_id===z.temperature));
         const selected=z.confirmed?z.temperature:(z.temperature_candidates?.length===1?z.temperature_candidates[0]:null);
         const selectedSources=z.confirmed?(z.sources||[]):(z.source_candidates||[]);
-        const available=states.filter(s=>["climate","switch","script"].includes(s.entity_id.split(".")[0]));
+        const configured=new Set((e.generators||[]).map(g=>g.control_entity).filter(Boolean));
+        const available=states.filter(s=>configured.has(s.entity_id)||(s.entity_id.startsWith("climate.")&&(s.attributes.hvac_modes||[]).some(m=>["heat","heat_cool","auto"].includes(m)))||(s.entity_id.startsWith("switch.")&&s.attributes.device_class==="heater"));
         if(selected && !temps.some(s=>s.entity_id===selected)) temps.push({entity_id:selected,attributes:{friendly_name:selected}});
         for(const id of selectedSources) if(!available.some(s=>s.entity_id===id)) available.push({entity_id:id,attributes:{friendly_name:id}});
         const order=(a,b)=>name(a).localeCompare(name(b));

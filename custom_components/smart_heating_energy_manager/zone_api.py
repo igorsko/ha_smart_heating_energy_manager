@@ -3,6 +3,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from .areas import discover_areas, zone_view
 from .temperature_zones import is_outdoor
+from .heat_sources import eligible, configured_sources
 
 DOMAIN = "smart_heating_energy_manager"
 
@@ -10,13 +11,13 @@ def _entry(hass, entry_id):
     entry = hass.config_entries.async_get_entry(entry_id)
     return entry if entry and entry.domain == DOMAIN else None
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): DOMAIN+"/zones",
     vol.Required("entry_id"): str,
 })
 @websocket_api.async_response
 async def zones(hass, connection, msg):
-    connection.require_admin()
     entry = _entry(hass,msg["entry_id"])
     if entry is None:
         connection.send_error(msg["id"],"not_found","Integration not found")
@@ -24,6 +25,7 @@ async def zones(hass, connection, msg):
     data={**entry.data,**entry.options}
     connection.send_result(msg["id"],zone_view(discover_areas(hass),data.get("zones",{}),data.get("outdoor")))
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): DOMAIN+"/save_zone",
     vol.Required("entry_id"): str,
@@ -33,7 +35,6 @@ async def zones(hass, connection, msg):
 })
 @websocket_api.async_response
 async def save_zone(hass, connection, msg):
-    connection.require_admin()
     entry=_entry(hass,msg["entry_id"])
     areas=discover_areas(hass)
     if entry is None or msg["area_id"] not in areas:
@@ -52,12 +53,24 @@ async def save_zone(hass, connection, msg):
             return
     outdoor=is_outdoor(msg["area_id"],{**areas[msg["area_id"]],**previous,"temperature":temperature},options.get("outdoor",entry.data.get("outdoor")))
     sources=[] if outdoor else list(dict.fromkeys(msg["sources"]))
-    if any(not s.startswith(("climate.","switch.","script.")) or (hass.states.get(s) is None and s not in previous.get("sources",[])) for s in sources):
+    configured=configured_sources(options.get("generators",entry.data.get("generators",{})))
+    def allowed(entity):
+        if entity in previous.get("sources",[]):
+            return True
+        state=hass.states.get(entity)
+        return state is not None and eligible(entity,state.attributes,entity in configured)
+    if any(not allowed(s) for s in sources):
         connection.send_error(msg["id"],"invalid_format","Invalid heating source")
         return
     saved[msg["area_id"]]={**previous,"temperature":temperature,"sources":sources,"confirmed":True}
     options["zones"]=saved
-    hass.config_entries.async_update_entry(entry,options=options)
+    try:
+        hass.config_entries.async_update_entry(entry,options=options)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Zone configuration save failed")
+        connection.send_error(msg["id"],"save_failed","Unable to save zone configuration; see Home Assistant logs")
+        return
     connection.send_result(msg["id"],zone_view(areas,saved,options.get("outdoor",entry.data.get("outdoor"))))
 
 def register(hass):

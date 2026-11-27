@@ -11,11 +11,10 @@ def finite(value):
 
 def electricity_price(pun, unit, fixed, spread, losses, variable, tax, vat):
     """Use a valid index in EUR/kWh or EUR/MWh; fixed price is all-inclusive."""
-    index = finite(pun)
-    if index is None or unit not in ("EUR/kWh", "€/kWh", "EUR/MWh", "€/MWh"):
+    from .tariff_discovery import index_value
+    index = index_value(pun,unit)
+    if index is None:
         return fixed, "fixed"
-    if unit.endswith("MWh"):
-        index /= 1000
     return ((index + spread) * (1 + losses) + variable + tax) * (1 + vat), "index"
 
 def estimate(indoor, outdoor, h, electricity, cop, pellet_price, pellet_mass, lhv, efficiency):

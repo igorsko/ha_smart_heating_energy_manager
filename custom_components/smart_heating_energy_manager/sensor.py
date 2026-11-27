@@ -3,6 +3,7 @@ from datetime import timedelta
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
+from .tariff_discovery import index_value, candidates
 from .model import finite, electricity_price, estimate
 from .onboarding import ready
 from .temperature_zones import resolve, average_temperature, reference_config
@@ -62,7 +63,13 @@ class HeatingSensor(SensorEntity):
     async def async_update(self):
         d = self._data
         learned = self.hass.data['smart_heating_energy_manager'][self._entry_id]['learned']
-        index = self.hass.states.get(d.get("pun", "")) if d.get("use_index") else None
+        from homeassistant.helpers import entity_registry as er
+        found=candidates(er.async_get(self.hass).entities.values(),self.hass.states.get)
+        index_id=d.get("pun") or (found[0] if len(found)==1 else None)
+        raw_index=self.hass.states.get(index_id) if index_id else None
+        if raw_index and dt_util.utcnow()-raw_index.last_updated>timedelta(hours=d.get("index_max_age_hours",36)):
+            raw_index=None
+        index=raw_index if d.get("use_index") else None
         # Reject index observations older than 36 hours, including restored stale values.
         if index and dt_util.utcnow() - index.last_updated > timedelta(hours=d.get('index_max_age_hours',36)):
             index = None
@@ -109,6 +116,8 @@ class HeatingSensor(SensorEntity):
         self._attr_native_value = result.get(self._key)
         self._attr_available = self._attr_native_value is not None
         self._attr_extra_state_attributes = {"mode": "advisory", "price_source": source,
+            "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,
+            "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,
             "zones": zone_models, "efficiencies": efficiencies,

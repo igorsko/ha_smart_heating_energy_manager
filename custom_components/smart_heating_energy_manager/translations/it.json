@@ -146,7 +146,6 @@
           "history_days": "Periodo di analisi dello storico (giorni)",
           "history_interval_minutes": "Intervallo di analisi (minuti)",
           "history_max_age_hours": "Validità massima dei campioni (ore)",
-          "history_min_coverage": "Soglia storica precedente (non più utilizzata)",
           "apply_learned": "Usa il modello termico appreso e validato",
           "calibration_locked": "Blocca l’aggiornamento del modello appreso",
           "reset_calibration": "Azzera il modello appreso"

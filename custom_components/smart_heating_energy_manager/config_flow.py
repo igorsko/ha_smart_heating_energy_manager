@@ -106,6 +106,12 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_confirm_discovery(self,user_input=None):
         return await self._simple_generator("confirm_discovery",user_input,str(uuid4()),self._discovered_defaults)
 
+    def _price_suggestion(self,current):
+        from homeassistant.helpers import entity_registry as er
+        from .tariff_discovery import candidates
+        found=candidates(er.async_get(self.hass).entities.values(),self.hass.states.get)
+        return current.get("pun") or (found[0] if len(found)==1 else None)
+
     async def async_step_tariff(self,user_input=None):
         if user_input is not None:
             self.options.update({"fixed":user_input.get("fixed"),"use_index":user_input.get("use_index",False),"pun":user_input.get("pun","")})
@@ -114,7 +120,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="tariff",data_schema=vol.Schema({
             vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {}):vol.All(vol.Coerce(float),vol.Range(min=0,max=10)),
             vol.Required("use_index",default=current.get("use_index",False)):bool,
-            vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+            vol.Optional("pun",description={"suggested_value":self._price_suggestion(current)} if self._price_suggestion(current) else {}):selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         }))
 
     async def async_step_advanced_tariff(self,user_input=None):
@@ -128,7 +134,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
         schema = {vol.Required(k,default=current.get(k,v)):vol.All(vol.Coerce(float),vol.Range(min=0,max=1 if k in ("vat","losses") else 10)) for k,v in fields.items()}
         schema[vol.Optional("fixed",description={"suggested_value":current["fixed"]} if current.get("fixed") is not None else {})]=vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
         schema[vol.Required("use_index",default=current.get("use_index",False))]=bool
-        schema[vol.Optional("pun",description={"suggested_value":current["pun"]} if current.get("pun") else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+        schema[vol.Optional("pun",description={"suggested_value":self._price_suggestion(current)} if self._price_suggestion(current) else {})]=selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
         return self.async_show_form(step_id="advanced_tariff",data_schema=vol.Schema(schema))
 
     async def async_step_add_generator(self, user_input=None):

@@ -20,3 +20,10 @@ class LearnedTests(unittest.TestCase):
     def test_invalid(self):
         self.result["fit"]["cop"]=float("nan")
         self.assertIsNone(m.accepted(self.result,self.config))
+
+    def test_reference_membership_and_no_cop(self):
+        config={**self.config,"indoor_reference":["sensor.a","sensor.b"]}
+        self.result["fit"].update(cop=None,cop_source="not_applicable")
+        record=m.accepted(self.result,config)
+        self.assertIsNotNone(record)
+        self.assertIsNone(m.current(record,{**config,"indoor_reference":["sensor.a"]}))

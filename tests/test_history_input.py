@@ -65,3 +65,13 @@ class HistoryTests(unittest.TestCase):
         self.assertIsNone(broken.counter_delta(10800,21600,7200))
         self.assertIsNone(broken.counter_delta(10800,14400,7200))
         self.assertIsNone(broken.counter_delta(21600,25200,7200))
+
+    def test_recent_counter_power(self):
+        samples=[h.Sample(0,10),h.Sample(3600,10.6)]
+        row=h.recent_counter_power(samples,3600)
+        self.assertAlmostEqual(row["power_w"],600)
+        self.assertEqual(row["interval_minutes"],60)
+        self.assertIsNone(h.recent_counter_power(samples,11000))
+        self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(3600,10)],3600))
+        self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(1800,None),h.Sample(3600,11)],3600))
+        self.assertIsNone(h.recent_counter_power([h.Sample(0,10),h.Sample(3600,1)],3600))

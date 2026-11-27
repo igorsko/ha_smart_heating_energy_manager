@@ -35,6 +35,56 @@ def discover_power(prefs, read, siblings):
             homes.add(home)
     if len(homes)==1 and not any(s.get("type")=="home" for s in sources):
         sources.append({"type":"home","stat_rate":next(iter(homes))})
+    # Explicit directional names only; generic signed power is ambiguous.
+    def linked(s,keys):
+        return sorted({e for key in keys if s.get(key) for e in siblings(s[key])})
+    def unique(pool,suffixes,klass,units):
+        matches=[]
+        for entity in pool:
+            state=read(entity)
+            if state and entity.endswith(suffixes) and state.attributes.get("unit_of_measurement") in units and state.attributes.get("device_class") in (None,klass):
+                matches.append(entity)
+        return matches[0] if len(matches)==1 else None
+    watts=("W","kW","MW")
+    for s in sources:
+        kind=s.get("type")
+        if kind not in ("grid","battery"):
+            continue
+        pool=linked(s,("stat_energy_from","stat_energy_to","stat_rate","stat_soc"))
+        if not s.get("power_config") and not s.get("stat_rate") and not s.get("power"):
+            if kind=="grid":
+                incoming=unique(pool,("_grid_import_power","_import_power"),"power",watts)
+                outgoing=unique(pool,("_grid_export_power","_export_power"),"power",watts)
+            else:
+                incoming=unique(pool,("_battery_discharge_power","_discharge_power"),"power",watts)
+                outgoing=unique(pool,("_battery_charge_power","_charge_power"),"power",watts)
+            if incoming and outgoing and incoming!=outgoing:
+                s["power_config"]={"stat_rate_from":incoming,"stat_rate_to":outgoing}
+                s["_discovered_directional"]=True
+        if kind=="battery":
+            # Only a named capacity, never remaining/stored energy.
+            if not s.get("entity_capacity") and not s.get("capacity"):
+                candidate=unique(pool,("_battery_capacity","_capacita_della_batteria"),"energy_storage",("Wh","kWh","MWh"))
+                if candidate:
+                    s["entity_capacity"]=candidate
+            if not s.get("stat_soc"):
+                candidate=unique(pool,("_battery_soc","_state_of_charge","_battery","_batteria"),"battery",("%",))
+                if candidate:
+                    s["stat_soc"]=candidate
+    # A single system-level battery can expose capacity on the solar-linked
+    # gateway even when charge/discharge counters are virtual helpers.
+    batteries=[s for s in sources if s.get("type")=="battery"]
+    solar_pool=sorted({e for s in sources if s.get("type")=="solar" and s.get("stat_energy_from") for e in siblings(s["stat_energy_from"])})
+    if len(batteries)==1 and sum(s.get("type")=="solar" for s in sources)==1:
+        s=batteries[0]
+        if not s.get("entity_capacity") and not s.get("capacity"):
+            candidate=unique(solar_pool,("_battery_capacity","_capacita_della_batteria"),"energy_storage",("Wh","kWh","MWh"))
+            if candidate:
+                s["entity_capacity"]=candidate
+        if not s.get("stat_soc"):
+            candidate=unique(solar_pool,("_battery_soc","_state_of_charge","_battery","_batteria"),"battery",("%",))
+            if candidate:
+                s["stat_soc"]=candidate
     return prefs
 
 def snapshot(prefs, read):
@@ -55,7 +105,7 @@ def snapshot(prefs, read):
             return -v if v is not None else None
         if p.get("stat_rate_from") and p.get("stat_rate_to"):
             a,b=power(p["stat_rate_from"]),power(p["stat_rate_to"])
-            return a-b if a is not None and b is not None else None
+            return a-b if a is not None and b is not None and (not s.get("_discovered_directional") or (a>=0 and b>=0)) else None
         charge=["stat_rate_from_grid","stat_rate_from_solar"]
         discharge=["stat_rate_to_home","stat_rate_to_grid"]
         if any(k in p for k in charge+discharge):
@@ -75,6 +125,26 @@ def snapshot(prefs, read):
     home=total([power(s.get("stat_rate")) for s in homes])
     if not homes and grid_net is not None and (not solar or pv is not None) and (not batteries or battery_net is not None):
         home=grid_net+(pv or 0)+(battery_net or 0)
+    # Derive at most one missing flow, and only with all other terms known.
+    origins={"grid_net_kw":"measured" if grid_net is not None else "unavailable",
+             "battery_net_kw":"measured" if battery_net is not None else "unavailable",
+             "home_kw":"measured" if homes and home is not None else "balance" if home is not None else "unavailable"}
+    if home is not None and home>=0 and (pv is not None and pv>=0 or not solar):
+        production=pv if solar else 0
+        if grid and grid_net is None and (battery_net is not None or not batteries):
+            grid_net=home-production-(battery_net if batteries else 0)
+            origins["grid_net_kw"]="balance"
+        elif batteries and battery_net is None and (grid_net is not None or not grid):
+            battery_net=home-production-(grid_net if grid else 0)
+            origins["battery_net_kw"]="balance"
+    def flow_ids(group):
+        ids=set()
+        for s in group:
+            for p in s.get("power") or [s]:
+                if p.get("stat_rate"):
+                    ids.add(p["stat_rate"])
+                ids.update(v for k,v in (p.get("power_config") or {}).items() if k.startswith("stat_rate") and isinstance(v,str))
+        return sorted(ids)
     socs=[]
     for s in batteries:
         state=read(s["stat_soc"]) if s.get("stat_soc") else None
@@ -96,7 +166,8 @@ def snapshot(prefs, read):
             "home_kw":home if home is not None and home>=0 else None,"grid_net_kw":grid_net,"export_kw":max(0,-grid_net) if grid_net is not None else None,
             "battery_net_kw":battery_net,"battery_soc":soc,
             "battery_capacity_kwh":sum(c for _,c in socs) if socs and all(c is not None and c>0 for _,c in socs) else None,
-            "energy_power_entities":{"pv":[e for e in pv_ids if e],"home":sorted(home_ids)},
+            "energy_flow_origins":origins,
+            "energy_power_entities":{"pv":[e for e in pv_ids if e],"home":sorted(home_ids),"grid":flow_ids(grid),"battery":flow_ids(batteries),"battery_capacity":[s["entity_capacity"] for s in batteries if s.get("entity_capacity")],"battery_soc":[s["stat_soc"] for s in batteries if s.get("stat_soc")]},
             "energy_dashboard_sources":{kind:[{k:v for k,v in s.items() if k.startswith("stat_") or k=="config_entry_solar_forecast"} for s in group] for kind,group in (("solar",solar),("grid",grid),("battery",batteries))}}
 
 async def async_snapshot(hass):

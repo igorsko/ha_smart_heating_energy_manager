@@ -38,8 +38,11 @@ async def save_zone(hass, connection, msg):
     if entry is None or msg["area_id"] not in areas:
         connection.send_error(msg["id"],"not_found","Integration or area not found")
         return
+    options=dict(entry.options)
+    saved=dict(options.get("zones",entry.data.get("zones",{})))
+    previous=saved.get(msg["area_id"],{})
     temperature=msg["temperature"]
-    if temperature:
+    if temperature and temperature != previous.get("temperature"):
         state=hass.states.get(temperature)
         if not temperature.startswith("sensor.") or state is None or (
             state.attributes.get("device_class")!="temperature" and
@@ -47,11 +50,9 @@ async def save_zone(hass, connection, msg):
             connection.send_error(msg["id"],"invalid_format","Select a temperature sensor")
             return
     sources=list(dict.fromkeys(msg["sources"]))
-    if any(not s.startswith(("climate.","switch.","script.")) or hass.states.get(s) is None for s in sources):
+    if any(not s.startswith(("climate.","switch.","script.")) or (hass.states.get(s) is None and s not in previous.get("sources",[])) for s in sources):
         connection.send_error(msg["id"],"invalid_format","Invalid heating source")
         return
-    options=dict(entry.options)
-    saved=dict(options.get("zones",entry.data.get("zones",{})))
     saved[msg["area_id"]]={"temperature":temperature,"sources":sources,"confirmed":True}
     options["zones"]=saved
     hass.config_entries.async_update_entry(entry,options=options)

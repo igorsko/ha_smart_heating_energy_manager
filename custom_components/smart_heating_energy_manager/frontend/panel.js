@@ -85,7 +85,7 @@ class SmartHeatingPanel extends HTMLElement {
       })};
     });
     const cal=states[ids.calibration];
-    return {schema_version:1,integration_version:"0.3.31",snapshot_at:a.snapshot_at??null,exported_at:new Date().toISOString(),generators,model:pick(a,["indoor_sensor_count","indoor_sensor_total","outdoor_sensor","diagnostic","thermal_model","loss_w_k","effective_capacity_kwh_k","capacity_origin","learned_cop","model_readiness"]),calibration:{status:cal?.state??null,...pick(cal?.attributes,["quality","fit","validation","intervals","calculated_at","generators","indoor_reference","outdoor_reference","passive_cooling","zone_cooling","cooling_consistency","dynamic_cop","shared_heat_pump_sources","passive_solar"])}};
+    return {schema_version:1,integration_version:"0.3.31",snapshot_at:a.snapshot_at??null,exported_at:new Date().toISOString(),generators,forecast_validation:states[ids.energy_forecast]?.attributes?.forecast_validation||{},model:pick(a,["indoor_sensor_count","indoor_sensor_total","outdoor_sensor","diagnostic","thermal_model","loss_w_k","effective_capacity_kwh_k","capacity_origin","learned_cop","model_readiness"]),calibration:{status:cal?.state??null,...pick(cal?.attributes,["quality","fit","validation","intervals","calculated_at","generators","indoor_reference","outdoor_reference","passive_cooling","zone_cooling","cooling_consistency","dynamic_cop","shared_heat_pump_sources","passive_solar"])}};
   }
   async exportDiagnostics(entryId, copy) {
     const entry=(this._panel.config?.installations||[]).find(e=>e.id===entryId);

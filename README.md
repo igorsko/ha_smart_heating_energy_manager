@@ -55,3 +55,7 @@ Explicit electrical input power sensors are discovered independently of nominal 
 ### Generator configuration (0.3.17)
 
 The advanced form uses the same calibration resolver as live monitoring. Automatic entity suggestions remain dynamic unless overridden; clear manual mappings to return to discovery. Alternative counters are shown. Technical estimates require explicit confirmation before becoming configured ratings. Duplicate name and room thermometer controls are removed from advanced generator options; room thermometers belong to zones. Vertigo heating request is not confirmed runtime. / Le associazioni automatiche sono precompilate; i parametri tecnici richiedono conferma esplicita.
+
+### Generator hourly telemetry (0.3.18)
+
+When an instantaneous electrical input sensor is missing, recent Recorder counter observations can provide a mean electrical power over a bounded 30–120 minute interval. Reset, stale, unchanged or invalid counters are rejected. The displayed hourly cost uses the current tariff, not a historical bill. Pellet rate, hourly fuel cost and estimated heat are shown only with explicit burning-state evidence; auxiliary electricity is excluded. / La potenza media ricavata dai contatori non è una misura istantanea. Il consumo di pellet e il costo orario sono distinti dal costo per kWh termico.

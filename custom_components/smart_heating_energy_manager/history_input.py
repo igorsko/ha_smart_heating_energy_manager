@@ -137,3 +137,29 @@ def build_intervals(indoor,outdoor,counters,start,end,step_seconds=3600,max_age_
             result.append(Interval(step_seconds/3600,a,b,t,totals["fuel"],totals["heat_pump"],totals["resistance"]))
         start=stop
     return result
+
+
+def recent_counter_power(samples, now, max_age=7200, min_interval=1800):
+    """Mean power between actual recorded observations, not an instantaneous reading.
+
+    Reject resets, invalid samples, stale endpoints and unchanged counters:
+    a quantized cloud counter that has not advanced cannot prove zero input.
+    """
+    series=Series(samples)
+    if not series.samples:
+        return None
+    end=series.samples[-1]
+    if not 0<=now-end.timestamp<=max_age or end.value is None or not isfinite(end.value):
+        return None
+    for start in reversed(series.samples[:-1]):
+        duration=end.timestamp-start.timestamp
+        if duration>max_age:
+            break
+        if duration<min_interval:
+            continue
+        energy=series.counter_delta(start.timestamp,end.timestamp,max_age)
+        if energy is None:
+            return None
+        if energy>0:
+            return {"power_w":energy*3600000/duration,"interval_minutes":duration/60,"end_timestamp":end.timestamp}
+    return None

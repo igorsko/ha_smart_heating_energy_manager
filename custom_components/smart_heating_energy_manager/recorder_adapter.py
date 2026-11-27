@@ -248,3 +248,23 @@ async def recent_heat_pump_power(hass, devices, now):
                     break
         return result
     return await get_instance(hass).async_add_executor_job(calculate)
+
+async def hourly_pv_actuals(hass,meters,targets):
+    """Gross production counter deltas for completed hours; no net-grid proxy."""
+    from .forecast_validation import timestamp
+    stamps=[t for v in targets if (t:=timestamp(v)) is not None]
+    if not stamps or not meters or "recorder" not in hass.config.components:
+        return {}
+    def calculate():
+        states=get_significant_states(hass,min(stamps)-timedelta(minutes=70),max(stamps)+timedelta(minutes=10),entity_ids=meters,include_start_time_state=True,significant_changes_only=False,minimal_response=False,no_attributes=False)
+        series={e:_series(states.get(e,[]),"energy") for e in meters}
+        result={}
+        for target in stamps:
+            end=target.timestamp()
+            start=end-3600
+            # Require fresh endpoints and reject reset/unknown counter segments.
+            values=[s.counter_delta(start,end,600) for s in series.values()]
+            if values and all(v is not None for v in values):
+                result[target.isoformat()]=sum(values)
+        return result
+    return await get_instance(hass).async_add_executor_job(calculate)

@@ -100,6 +100,14 @@ def calibration_inputs(devices, entries, read):
                         g["energy_entity"]=matches[0]
                         break
             if g["kind"]=="heat_pump" and not g.get("energy_entity") and onecta:
+                # Exact vendor counter identity is also available before live states.
+                for period in ("yearly","annual","monthly","weekly","daily"):
+                    suffix="_heating_"+period+"_electrical_consumption"
+                    candidates=[e.entity_id for e in siblings if e.entity_id.startswith("sensor.") and e.entity_id.endswith(suffix) and ((s:=read(e.entity_id)) is None or s.attributes.get("unit_of_measurement") in ("Wh","kWh","MWh") or s.state in ("unknown","unavailable") and s.attributes.get("unit_of_measurement") is None)]
+                    if len(candidates)==1:
+                        g["energy_entity"]=candidates[0]
+                        break
+            if g["kind"]=="heat_pump" and not g.get("energy_entity") and onecta:
                 for period in ("yearly","annual","monthly","weekly","daily"):
                     candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("measurement",None))
                     if candidate:

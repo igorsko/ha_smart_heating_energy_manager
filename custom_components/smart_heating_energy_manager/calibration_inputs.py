@@ -16,7 +16,8 @@ def calibration_inputs(devices, entries, read):
         siblings=[e for e in entries if control and control.device_id and e.device_id==control.device_id and e.platform==control.platform and not e.disabled_by]
         # Onecta can register ClimateControl sensors on another device record.
         # Require the exact appliance prefix and same integration config entry.
-        if control and control.platform in ("daikin_onecta","daikin") and control.entity_id.startswith("climate.") and control.entity_id.endswith("_room_temperature"):
+        onecta=bool(control and (control.platform in ("daikin_onecta","daikin") or any(e.entity_id.endswith("_heating_yearly_electrical_consumption") for e in siblings)))
+        if onecta and control.entity_id.startswith("climate.") and control.entity_id.endswith("_room_temperature"):
             prefix=control.entity_id.split(".",1)[1].removesuffix("_room_temperature")+"_climatecontrol_"
             config_id=getattr(control,"config_entry_id",None)
             if config_id:
@@ -98,13 +99,21 @@ def calibration_inputs(devices, entries, read):
                     if len(matches)==1:
                         g["energy_entity"]=matches[0]
                         break
-            if g["kind"]=="heat_pump" and not g.get("energy_entity") and control and control.platform in ("daikin_onecta","daikin"):
+            if g["kind"]=="heat_pump" and not g.get("energy_entity") and onecta:
+                # Exact vendor counter identity is also available before live states.
+                for period in ("yearly","annual","monthly","weekly","daily"):
+                    suffix="_heating_"+period+"_electrical_consumption"
+                    candidates=[e.entity_id for e in siblings if e.entity_id.startswith("sensor.") and e.entity_id.endswith(suffix) and ((s:=read(e.entity_id)) is None or s.attributes.get("unit_of_measurement") in ("Wh","kWh","MWh") or s.state in ("unknown","unavailable") and s.attributes.get("unit_of_measurement") is None)]
+                    if len(candidates)==1:
+                        g["energy_entity"]=candidates[0]
+                        break
+            if g["kind"]=="heat_pump" and not g.get("energy_entity") and onecta:
                 for period in ("yearly","annual","monthly","weekly","daily"):
                     candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("measurement",None))
                     if candidate:
                         g["energy_entity"]=candidate
                         break
-            if g["kind"]=="heat_pump" and not original.get("energy_entity") and control and control.platform in ("daikin_onecta","daikin"):
+            if g["kind"]=="heat_pump" and not original.get("energy_entity") and onecta:
                 alternatives=[]
                 for period in ("yearly","annual","monthly","weekly","daily"):
                     candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("total","total_increasing","measurement",None))
@@ -123,7 +132,7 @@ def calibration_inputs(devices, entries, read):
                 candidate=unique(("_electrical_power","_electrical_input_power","_power_consumption","_input_power","_active_power","_power_absorption"),("W","kW","MW"))
                 if candidate:
                     g["power_entity"]=candidate
-            if g["kind"]=="heat_pump" and control and control.platform not in ("daikin_onecta","daikin"):
+            if g["kind"]=="heat_pump" and control and not onecta:
                 from .onboarding import suggest_sensors
                 electrical=[e for e in siblings if not any(t in e.entity_id.lower() for t in ("thermal","heat_output","heating_capacity","cooling","produced"))]
                 for field,value in suggest_sensors(electrical,read,"heat_pump").items():

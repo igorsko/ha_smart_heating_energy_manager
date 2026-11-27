@@ -206,14 +206,16 @@ def heat_pump_live(data, read, outdoor, now, average=None, electricity=None):
     # but fan/standby/defrost cannot be distinguished from useful heat.
     source="sensor" if power is not None else "unavailable"
     interval=None
+    end_timestamp=None
     if power is None and average:
         power=average["power_w"]
         entity=average["power_entity"]
         interval=average["interval_minutes"]
+        end_timestamp=average.get("end_timestamp")
         source="counter_average"
     if status=="unknown" and source=="counter_average" and power>0:
         status,evidence="recent_consumption","energy_counter"
-    return {"mode":mode,"operating_status":status,"operating_evidence":evidence,"hvac_action":action,"state_entity":data.get("state_entity"),"state_value":raw,"operating_candidates":data.get("_operating_candidates",[]),"power_w":power,"power_entity":entity,"power_source":source,"interval_minutes":interval,"cop":cop,"cop_source":origin,
+    return {"mode":mode,"operating_status":status,"operating_evidence":evidence,"hvac_action":action,"state_entity":data.get("state_entity"),"state_value":raw,"operating_candidates":data.get("_operating_candidates",[]),"power_w":power,"power_entity":entity,"power_source":source,"interval_minutes":interval,"end_timestamp":end_timestamp,"cop":cop,"cop_source":origin,
             "heat_kw":power*cop/1000 if power is not None and heating and source=="sensor" and cop is not None and cop>0 else None,
             "cost_per_hour":power*electricity/1000 if power is not None and electricity is not None else None,
             "heating_confirmed":heating}

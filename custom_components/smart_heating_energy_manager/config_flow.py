@@ -148,6 +148,9 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_building(self, user_input=None):
         if user_input is not None:
+            reset = user_input.pop("reset_calibration",False)
+            if reset:
+                self.options["calibration_generation"] = self.options.get("calibration_generation",0)+1
             self.options.update(user_input)
             return self._save()
         current = {**self.config_entry.data, **self.options}
@@ -156,6 +159,9 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             vol.Required("outdoor",default=current["outdoor"]): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor",device_class="temperature")),
             vol.Required("h",default=current["h"]): vol.All(vol.Coerce(float),vol.Range(min=1,max=10000)),
             vol.Required("index_max_age_hours",default=current.get("index_max_age_hours",36)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=744)),
+            vol.Required("apply_learned",default=current.get("apply_learned",False)): bool,
+            vol.Required("calibration_locked",default=current.get("calibration_locked",False)): bool,
+            vol.Required("reset_calibration",default=False): bool,
             vol.Required("history_enabled",default=current.get("history_enabled",False)): bool,
             vol.Required("history_min_coverage",default=current.get("history_min_coverage",.7)): vol.All(vol.Coerce(float),vol.Range(min=.1,max=1)),
             vol.Required("history_days",default=current.get("history_days",7)): vol.All(vol.Coerce(int),vol.Range(min=1,max=30)),

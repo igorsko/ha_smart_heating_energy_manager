@@ -120,3 +120,36 @@ def fit(intervals, settings=None, known_cop=None):
     if rmse > cfg.max_rmse_kw:
         return None
     return Fit(h*1000,c,cop,rmse,len(rows),"estimated" if estimate_cop else "configured" if hp_present else "not_applicable")
+
+
+def validate_holdout(intervals, known_cop=None, settings=None):
+    """Chronological out-of-sample one-step thermal error; never fit on holdout."""
+    cfg = settings or CalibrationSettings()
+    samples = list(intervals)
+    count = max(12, len(samples)//4)
+    if len(samples)-count < cfg.min_samples:
+        return {"status":"insufficient_data"}
+    model = fit(samples[:-count], cfg, known_cop)
+    if model is None:
+        return {"status":"unidentifiable_training"}
+    errors = []
+    h = model.loss_w_k/1000
+    c = model.capacity_kwh_k
+    for s in samples[-count:]:
+        values = (s.hours,s.indoor_start,s.indoor_end,s.outdoor,s.stove_kwh,s.hp_kwh,s.resistance_kwh)
+        if not all(math.isfinite(v) for v in values) or not cfg.min_hours <= s.hours <= cfg.max_hours or min(values[4:]) < 0:
+            continue
+        if s.hp_kwh > 0 and model.cop is None:
+            continue
+        heat = (s.stove_kwh+s.resistance_kwh+s.hp_kwh*(model.cop or 0))/s.hours
+        decay = math.exp(-h*s.hours/c)
+        predicted = s.outdoor+(s.indoor_start-s.outdoor)*decay+heat*(-math.expm1(-h*s.hours/c))/h
+        errors.append(predicted-s.indoor_end)
+    if len(errors)<12:
+        return {"status":"insufficient_holdout","samples":len(errors)}
+    return {"status":"evaluated","training_samples":model.samples,"samples":len(errors),
+            "mae_c":sum(abs(e) for e in errors)/len(errors),
+            "rmse_c":math.sqrt(sum(e*e for e in errors)/len(errors)),
+            "bias_c":sum(errors)/len(errors),
+            "baseline_mae_c":sum(abs(s.indoor_end-s.indoor_start) for s in samples[-count:])/count,
+            "method":"chronological_one_step_measured_inputs"}

@@ -58,10 +58,8 @@ async def async_calibrate(hass, config):
     if not devices:
         return {"status":"no_generators"}
     pending=[key for key,g in devices if not input_report[key]["usable"]]
-    if pending:
-        return {"status":"configure_generator_parameters","pending_generators":pending,"inputs":input_report}
     temp_ids=set(indoor_ids+[outdoor_id])
-    ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
+    ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
@@ -78,7 +76,7 @@ async def async_calibrate(hass, config):
         counters,diagnostics,used=[],{},set()
         for key,g in devices:
             choices=[]
-            factor=g["efficiency"] if g["kind"]=="resistance" else 1
+            factor=g.get("efficiency",1) if g["kind"]=="resistance" else 1
             if g["kind"]!="fuel" or g.get("energy_is_useful_heat",False):
                 for field,kind in (("energy_entity","energy"),("power_entity","power")):
                     entity=g.get(field)
@@ -121,6 +119,15 @@ async def async_calibrate(hass, config):
                 if coverage>=threshold and entity not in used and entity not in temp_ids and selected is None:
                     selected=(method,entity,series)
             diagnostics[key]={"coverage":report,"source":selected[0] if selected else None,"entity":selected[1] if selected else None}
+            if selected is None and g.get("off_only_entity"):
+                off=g["off_only_entity"]
+                # Unknown or enabled states invalidate the interval, not zero heat.
+                series=RateSeries([Sample(s.last_updated.timestamp(),0. if s.state=="off" else None) for s in states.get(off,[])])
+                coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
+                if coverage>0 and off not in used and off not in temp_ids:
+                    selected=("confirmed_off_only",off,series)
+                    diagnostics[key].update(source=selected[0],entity=off)
+                    diagnostics[key]["coverage"]["confirmed_off_only"]=round(coverage,3)
             if selected:
                 used.add(selected[1])
                 counters.append((g["kind"],selected[2]))

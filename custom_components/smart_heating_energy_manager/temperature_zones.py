@@ -13,7 +13,8 @@ def thermometer(zone):
 
 def resolve(zones, indoor=None, outdoor=None):
     exterior=[thermometer(z) for k,z in zones.items() if is_outdoor(k,z,outdoor)]
-    outside=outdoor or next(iter(set(exterior)-{None}),None) if len(set(exterior)-{None})<=1 else outdoor
+    candidates=set(exterior)-{None}
+    outside=outdoor or (next(iter(candidates)) if len(candidates)==1 else None)
     excluded=set(exterior)|{outside,outdoor,None}
     inside=sorted({thermometer(z) for k,z in zones.items() if not is_outdoor(k,z,outdoor)}-excluded)
     if not inside and indoor not in excluded:

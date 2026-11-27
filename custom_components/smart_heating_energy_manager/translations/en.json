@@ -22,7 +22,8 @@
           "display": "Display",
           "zones": "Heating zones",
           "advanced_generator": "Generator technical settings",
-          "advanced_settings": "Calibration and advanced settings"
+          "advanced_settings": "Calibration and advanced settings",
+          "advanced_tariff": "Advanced tariff components"
         }
       },
       "add_generator": {
@@ -79,12 +80,7 @@
         "data": {
           "pun": "Price index sensor",
           "use_index": "Use price index",
-          "fixed": "Fixed all-inclusive price",
-          "spread": "Supplier spread",
-          "losses": "Grid loss fraction",
-          "variable": "Variable charges",
-          "tax": "Excise",
-          "vat": "VAT fraction"
+          "fixed": "Fixed all-inclusive price"
         }
       },
       "display": {
@@ -155,6 +151,19 @@
           "reset_calibration": "Invalidate previous calibration"
         },
         "title": "Calibration and advanced settings"
+      },
+      "advanced_tariff": {
+        "data": {
+          "pun": "Price index sensor",
+          "use_index": "Use price index",
+          "fixed": "Fixed all-inclusive price",
+          "spread": "Supplier spread",
+          "losses": "Grid loss fraction",
+          "variable": "Variable charges",
+          "tax": "Excise",
+          "vat": "VAT fraction"
+        },
+        "title": "Advanced tariff components"
       }
     },
     "error": {

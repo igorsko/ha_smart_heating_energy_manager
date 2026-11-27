@@ -117,3 +117,11 @@ class BootstrapTests(unittest.TestCase):
         self.assertTrue(m.heat_pump_live(d,states.get,7,now)["heating_confirmed"])
         states["climate.unit"].state="off"
         self.assertEqual(m.heat_pump_live(d,states.get,7,now)["operating_status"],"off")
+
+    def test_winnet_text_and_numeric_string(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace as N
+        d={"kind":"fuel","_operating_entity":"sensor.state"}
+        now=datetime.now(timezone.utc)
+        for raw,attrs,expected in [("Avvio",{},"starting"),("In Funzione",{},"working"),("Avvio",{"state_code":"2"},"starting"),("unavailable",{"state_code":3},"unknown")]:
+            self.assertEqual(m.fuel_live(d,lambda _:N(state=raw,attributes=attrs),now)["operating_status"],expected)

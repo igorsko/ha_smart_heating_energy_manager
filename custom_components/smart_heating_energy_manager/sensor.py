@@ -162,6 +162,7 @@ class HeatingSensor(SensorEntity):
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
             "learned_cop":cop_info,"heat_pump_live":live,"fuel_live":fuel,
+            "generator_inventory":{k:{"entities":v.get("_inventory",[]),"energy_entity":v.get("energy_entity"),"power_entity":v.get("power_entity"),"energy_alternatives":v.get("energy_alternatives",[]),"state_entity":v.get("state_entity")} for k,v in resolved.items()},
             "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
             "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],

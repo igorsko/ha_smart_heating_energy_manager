@@ -67,3 +67,7 @@ The historical holdout includes a separate heat-pump-active error check. A learn
 ### Operating status (0.3.20)
 
 WiNET display uses the dedicated state sensor and its state_code, independently of the burning binary sensor used for fuel calculations. Heat pumps distinguish mode, HVAC action, explicit operating sensors and recent consumption. A compressor signal alone does not prove heat delivery. Diagnostics list detected operating entities and readings. / Stato operativo e combustione sono distinti; i consumi recenti non dimostrano attività istantanea.
+
+### Generator inventory (0.3.21)
+
+Diagnostics show associated registry entities, including disabled and unavailable entities, raw readings, units, device/state classes and selected energy counters for every generator type. Disabled entries are diagnostic only. WiNET state accepts numeric codes, numeric strings and documented textual states. / Inventario delle entità per tutti i generatori, con stato originale e fonti energetiche selezionate.

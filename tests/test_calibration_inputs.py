@@ -95,3 +95,12 @@ class InputTests(unittest.TestCase):
         resolved,_=m.calibration_inputs({"stove":{"kind":"fuel","control_entity":"climate.stove","technical_configured":False}},entries,lambda _:None)
         self.assertEqual(resolved["stove"]["_operating_entity"],"sensor.stove_stato")
         self.assertEqual(resolved["stove"]["state_entity"],"binary_sensor.stove_burning")
+
+    def test_inventory_retains_disabled_and_missing_states(self):
+        entries=[N(entity_id=e,unique_id=e,device_id="a",platform="other",disabled_by=disabled) for e,disabled in [("switch.unit",None),("sensor.unit_power","user"),("sensor.unit_energy",None)]]
+        devices={"r":{"kind":"resistance","control_entity":"switch.unit","technical_configured":False}}
+        resolved,_=m.calibration_inputs(devices,entries,lambda _:None)
+        rows={v["entity"]:v for v in resolved["r"]["_inventory"]}
+        self.assertTrue(rows["sensor.unit_power"]["disabled"])
+        self.assertIsNone(rows["sensor.unit_energy"]["state"])
+        self.assertNotIn("power_entity",resolved["r"])

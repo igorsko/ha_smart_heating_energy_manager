@@ -241,6 +241,12 @@ def fuel_live(data, read, now):
     operating_id=data.get("_operating_entity")
     operating=read(operating_id) if operating_id else None
     code=operating.attributes.get("state_code") if operating and operating.state not in ("unknown","unavailable") else None
-    operating_state={1:"off",2:"starting",3:"working",4:"wait_on",5:"temp_ok",6:"no_program",7:"wait_time",8:"stop",9:"sunout"}.get(code,"unknown")
-    return {"operating_entity":operating_id,"operating_status":operating_state,"burning_state":status.state if status else None,"rate_kg_h":rate,"rate_entity":entity,"cost_per_hour":rate*p/q if rate is not None and kg and p is not None and q and q>0 else None,
+    codes={1:"off",2:"starting",3:"working",4:"wait_on",5:"temp_ok",6:"no_program",7:"wait_time",8:"stop",9:"sunout"}
+    code=finite(code)
+    operating_state=codes.get(code,"unknown")
+    if operating and operating.state not in ("unknown","unavailable") and operating_state=="unknown":
+        labels={"spento":"off","spenta":"off","off":"off","avvio":"starting","accensione":"starting","accensione in corso":"starting","in funzione":"working","working":"working","attesa accensione":"wait_on","temperatura ok":"temp_ok","temperatura raggiunta":"temp_ok","nessun programma":"no_program","attesa orario":"wait_time","arresto":"stop","spegnimento in corso":"stop"}
+        raw=str(operating.attributes.get("state_english") or operating.state).strip().lower()
+        operating_state=raw if raw in codes.values() else labels.get(raw,"unknown")
+    return {"operating_entity":operating_id,"operating_raw":str(operating.state) if operating else None,"state_code":code,"operating_status":operating_state,"burning_state":status.state if status else None,"rate_kg_h":rate,"rate_entity":entity,"cost_per_hour":rate*p/q if rate is not None and kg and p is not None and q and q>0 else None,
             "heat_kw":rate*e*eff if rate is not None and kg and e and eff else None,"efficiency":eff,"fuel_energy_kwh":e}

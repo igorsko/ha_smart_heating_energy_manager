@@ -1,0 +1,3 @@
+# Adaptive bootstrap (0.3.0)
+
+Optional heated floor area and loss profile provide broad engineering priors, not a building survey. Manual heat loss takes precedence over priors; validated learned estimates are applied only when enabled. The economic comparison is independent of capacity or demand and is not a dispatch recommendation. Incomplete heat pumps use a provisional COP of 3 and resistance heaters a provisional efficiency of 1; fuel price and fuel type must be known. Estimates never overwrite saved technical settings. Calibration still requires suitable historical measurements and complete generator configuration. Direct timestamp tariff attributes are supported. No private installation data is included. Runtime HA validation is pending.

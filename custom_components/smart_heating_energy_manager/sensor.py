@@ -60,6 +60,43 @@ class HeatingSensor(SensorEntity):
             return None
         return value if value is not None and -60 <= value <= 70 else None
 
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        from homeassistant.helpers.event import async_track_state_change_event, async_call_later
+        from homeassistant.core import callback
+        from homeassistant.helpers import entity_registry as er
+        from .calibration_inputs import calibration_inputs
+        d=self._data
+        zones=zone_view(discover_areas(self.hass),d.get("zones",{}),d.get("outdoor"))
+        ref=reference_config(d,zones)
+        resolved,_=calibration_inputs(d.get("generators",{}),er.async_get(self.hass).entities.values(),self.hass.states.get)
+        watched=set(ref["indoor_reference"]+[ref["outdoor_reference"],d.get("pun")])
+        for g in resolved.values():
+            watched.update(g.get(k) for k in ("control_entity","state_entity","fuel_rate_entity","fuel_mass_entity","energy_entity","power_entity","_operating_entity"))
+            watched.update(g.get("energy_alternatives",[]))
+        watched.discard(None)
+        watched.discard("")
+        pending=None
+        @callback
+        def refresh(_now):
+            nonlocal pending
+            pending=None
+            self.async_schedule_update_ha_state(True)
+        @callback
+        def changed(event):
+            nonlocal pending
+            if pending is None:
+                pending=async_call_later(self.hass,5,refresh)
+        @callback
+        def cleanup():
+            if pending:
+                pending()
+        if watched:
+            self.async_on_remove(async_track_state_change_event(self.hass,list(watched),changed))
+        self.async_on_remove(cleanup)
+        # Initial polling can precede cloud/device state publication.
+        pending=async_call_later(self.hass,20,refresh)
+
     async def async_update(self):
         d = self._data
         learned = self.hass.data['smart_heating_energy_manager'][self._entry_id]['learned']
@@ -163,7 +200,7 @@ class HeatingSensor(SensorEntity):
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
             "learned_cop":cop_info,"heat_pump_live":live,"fuel_live":fuel,
-            "generator_inventory":{k:{"entities":v.get("_inventory",[]),"energy_entity":v.get("energy_entity"),"power_entity":v.get("power_entity"),"energy_alternatives":v.get("energy_alternatives",[]),"state_entity":v.get("state_entity")} for k,v in resolved.items()},
+            "generator_inventory":{k:{"entities":v.get("_inventory",[]),"energy_entity":v.get("energy_entity"),"power_entity":v.get("power_entity"),"energy_alternatives":v.get("energy_alternatives",[]),"state_entity":v.get("state_entity"),"fuel_mass_entity":v.get("fuel_mass_entity"),"fuel_rate_entity":v.get("fuel_rate_entity"),"off_only_entity":v.get("off_only_entity")} for k,v in resolved.items()},
             "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
             "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],

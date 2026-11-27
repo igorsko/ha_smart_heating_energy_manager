@@ -111,14 +111,15 @@ class HeatingSensor(SensorEntity):
             lock=runtime.setdefault("telemetry_lock",asyncio.Lock())
             async with lock:
                 cached=runtime.get("telemetry_cache")
-                if not cached or (now-cached[0]).total_seconds()>=300:
+                signature=tuple(sorted((k,tuple([v.get("energy_entity") or "",*v.get("energy_alternatives",[])])) for k,v in resolved.items() if v.get("kind")=="heat_pump"))
+                if not cached or len(cached)<3 or cached[2]!=signature or (now-cached[0]).total_seconds()>=300:
                     try:
                         averages=await recent_heat_pump_power(self.hass,resolved,now)
                     except Exception:
                         import logging
                         logging.getLogger(__name__).exception("Recent energy counter history unavailable")
                         averages={}
-                    runtime["telemetry_cache"]=(now,averages)
+                    runtime["telemetry_cache"]=(now,averages,signature)
                 else:
                     averages=cached[1]
             for k,v in missing.items():
@@ -155,7 +156,7 @@ class HeatingSensor(SensorEntity):
         valid=current(learned,ref) if model_source=="learned" else None
         capacity=valid["fit"]["capacity_kwh_k"] if valid else d.get("thermal_capacity") or initial_capacity
         quality=readiness(count,len(indoor_ids),outdoor,finite(loss),finite(capacity),price)
-        self._attr_extra_state_attributes = {"model_readiness":quality,"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"effective_capacity_kwh_k":capacity,"capacity_origin":"learned" if valid else "manual" if d.get("thermal_capacity") else "estimated" if initial_capacity is not None else "unknown","mode": "advisory", "price_source": source,
+        self._attr_extra_state_attributes = {"snapshot_at":now.isoformat(),"model_readiness":quality,"economic_comparison":economic,"initial_capacity_kwh_k":initial_capacity,"effective_capacity_kwh_k":capacity,"capacity_origin":"learned" if valid else "manual" if d.get("thermal_capacity") else "estimated" if initial_capacity is not None else "unknown","mode": "advisory", "price_source": source,
             "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,
             "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,

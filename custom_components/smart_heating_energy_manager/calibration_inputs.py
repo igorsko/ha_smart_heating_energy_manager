@@ -107,6 +107,11 @@ def calibration_inputs(devices, entries, read):
                     if candidate and candidate!=g.get("energy_entity"):
                         alternatives.append(candidate)
                 g["energy_alternatives"]=alternatives
+            if g["kind"]=="heat_pump" and not g.get("power_entity"):
+                # Require explicit electrical input semantics, never thermal output.
+                candidate=unique(("_electrical_power","_electrical_input_power","_power_consumption","_input_power","_active_power","_power_absorption"),("W","kW","MW"))
+                if candidate:
+                    g["power_entity"]=candidate
             if g["kind"]=="resistance":
                 from .onboarding import suggest_sensors
                 for field,value in suggest_sensors(siblings,read,"resistance").items():

@@ -72,6 +72,32 @@ class RateSeries(Series):
         avg = self.average(start,end,max_age)
         return None if avg is None or avg < 0 else avg*(end-start)/3600
 
+class ConfirmedOffSeries(Series):
+    """Bounded OFF evidence from a change-only state history.
+
+    A long unchanged OFF period is usable only between recorded OFF
+    observations (including a verified live OFF observation). Unknown
+    or active states interrupt that evidence. Never extrapolate past
+    the final observation beyond the ordinary freshness limit.
+    """
+    def counter_delta(self,start,end,max_age):
+        if end<=start:
+            return None
+        left=bisect_right(self.times,start)-1
+        if left<0 or self.samples[left].value!=0:
+            return None
+        right=bisect_right(self.times,end)
+        if any(s.value!=0 for s in self.samples[left:right]):
+            return None
+        last=self.samples[right-1]
+        if end-last.timestamp<=max_age and start-self.samples[left].timestamp<=max_age:
+            return 0.
+        if right<len(self.samples) and self.samples[right].value==0:
+            return 0.
+        if last.timestamp>=end:
+            return 0.
+        return None
+
 class AlternativeSeries:
     """Choose one valid source per interval; never add overlapping meters.
 

@@ -303,7 +303,7 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_energy_forecast(self,user_input=None):
         current={**self.config_entry.data,**self.options}
         if user_input is not None:
-            for field in ("pv_power","grid_export","battery_soc","weather","forecast_target","thermal_capacity","preheat_margin"):
+            for field in ("pv_power","grid_export","battery_soc","weather","forecast_target","thermal_capacity","preheat_margin","solar_gain_factor"):
                 self.options[field]=user_input.get(field)
             return self._save()
         def optional(k):
@@ -316,7 +316,8 @@ class DeviceOptionsFlow(config_entries.OptionsFlow):
             optional("weather"):selector.EntitySelector(selector.EntitySelectorConfig(domain="weather")),
             optional("forecast_target"):vol.All(vol.Coerce(float),vol.Range(min=5,max=35)),
             optional("thermal_capacity"):vol.All(vol.Coerce(float),vol.Range(min=.1,max=200)),
-            optional("preheat_margin"):vol.All(vol.Coerce(float),vol.Range(min=0,max=3))
+            optional("preheat_margin"):vol.All(vol.Coerce(float),vol.Range(min=0,max=3)),
+            optional("solar_gain_factor"):vol.All(vol.Coerce(float),vol.Range(min=0,max=10))
         }))
 
     async def async_step_joint_plan(self,user_input=None):

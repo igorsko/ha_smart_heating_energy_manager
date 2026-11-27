@@ -175,7 +175,7 @@ class EnergyForecast(SensorEntity):
                     return value if unit=="°C" else (value-32)*5/9 if unit=="°F" and value is not None else None
                 ids=ref["indoor_reference"]
                 indoor,count=average_temperature(ids,read_temperature)
-                attrs["thermal_prediction"]=simulate(thermal_hours,indoor if count==len(ids) else None,loss,capacity,d.get("forecast_target"),d.get("preheat_margin") or 0,now)
+                attrs["thermal_prediction"]=simulate(thermal_hours,indoor if count==len(ids) else None,loss,capacity,d.get("forecast_target"),d.get("preheat_margin") or 0,now,d.get("solar_gain_factor") or 0)
                 attrs["thermal_prediction"]["parameter_source"]=source
                 status="estimated" if attrs["plan"] else "configure_model" if hours else "forecast_unavailable"
             except Exception:

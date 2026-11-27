@@ -3,7 +3,7 @@ from datetime import timedelta
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.util import dt as dt_util
 from .learned import accepted, effective_loss
-from .tariff_discovery import index_value, candidates
+from .tariff_discovery import index_value, candidates as tariff_candidates
 from .model import finite, electricity_price, estimate
 from .onboarding import ready
 from .temperature_zones import resolve, average_temperature, reference_config
@@ -64,7 +64,7 @@ class HeatingSensor(SensorEntity):
         d = self._data
         learned = self.hass.data['smart_heating_energy_manager'][self._entry_id]['learned']
         from homeassistant.helpers import entity_registry as er
-        found=candidates(er.async_get(self.hass).entities.values(),self.hass.states.get)
+        found=tariff_candidates(er.async_get(self.hass).entities.values(),self.hass.states.get)
         index_id=d.get("pun") or (found[0] if len(found)==1 else None)
         raw_index=self.hass.states.get(index_id) if index_id else None
         if raw_index and dt_util.utcnow()-raw_index.last_updated>timedelta(hours=d.get("index_max_age_hours",36)):
@@ -121,9 +121,10 @@ class HeatingSensor(SensorEntity):
             "index_price":index_value(raw_index.state,raw_index.attributes.get("unit_of_measurement")) if raw_index else None,
             "index_entity":index_id,"index_candidates":found,
             "thermal_model": model_source, "loss_w_k": loss,
-            "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,
+            "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],
+            "diagnostic": {"indoor": "ok" if indoor is not None else "missing_temperature", "outdoor": "ok" if outdoor is not None else "missing_temperature", "tariff": "ok" if price is not None else "configure_tariff", "loss": "ok" if finite(loss) is not None and finite(loss)>0 else "configure_model", "index_enabled": bool(d.get("use_index")), "index_available": raw_index is not None},
             "candidates": [{"id": key, "cost": cost} for key,cost in candidates]}
 
 class CalibrationDiagnostic(SensorEntity):

@@ -194,7 +194,8 @@
           "weather": "Previsioni meteo orarie",
           "forecast_target": "Temperatura interna desiderata (°C)",
           "thermal_capacity": "Capacità termica manuale (kWh/K)",
-          "preheat_margin": "Incremento massimo scenario preriscaldamento (°C)"
+          "preheat_margin": "Incremento massimo scenario preriscaldamento (°C)",
+          "solar_gain_factor": "Apporto solare passivo (kWh termici per kWh FV; 0 = disabilitato)"
         }
       },
       "dhw": {

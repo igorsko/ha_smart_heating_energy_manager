@@ -100,6 +100,13 @@ def calibration_inputs(devices, entries, read):
                     if candidate:
                         g["energy_entity"]=candidate
                         break
+            if g["kind"]=="heat_pump" and not original.get("energy_entity") and control and control.platform in ("daikin_onecta","daikin"):
+                alternatives=[]
+                for period in ("yearly","annual","monthly","weekly","daily"):
+                    candidate=unique(("_heating_"+period+"_electrical_consumption","_heating_energy_consumption_"+period),("Wh","kWh","MWh"),("total","total_increasing","measurement",None))
+                    if candidate and candidate!=g.get("energy_entity"):
+                        alternatives.append(candidate)
+                g["energy_alternatives"]=alternatives
             if g["kind"]=="resistance":
                 from .onboarding import suggest_sensors
                 for field,value in suggest_sensors(siblings,read,"resistance").items():

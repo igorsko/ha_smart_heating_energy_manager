@@ -5,7 +5,7 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 from .calibration import fit, validate_holdout
-from .history_input import Sample, Series, MeanSeries, RateSeries, build_intervals
+from .history_input import Sample, Series, MeanSeries, RateSeries, AlternativeSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
 
@@ -60,11 +60,12 @@ async def async_calibrate(hass, config):
     pending=[key for key,g in devices if not input_report[key]["usable"]]
     temp_ids=set(indoor_ids+[outdoor_id])
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
+    ids=list(dict.fromkeys(ids+[e for _,g in devices for e in g.get("energy_alternatives",[])]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
     step=config.get("history_interval_minutes",60)*60
-    threshold=config.get("history_min_coverage",.7)
+    # Coverage is diagnostic; the fit requires complete joint intervals.
     def calculate():
         states=get_significant_states(hass,start-timedelta(seconds=age),end,entity_ids=ids,
             include_start_time_state=False,significant_changes_only=False,minimal_response=False,no_attributes=False)
@@ -82,6 +83,8 @@ async def async_calibrate(hass, config):
                     entity=g.get(field)
                     if entity:
                         choices.append((field,entity,_series(states.get(entity,[]),kind,factor)))
+            for entity in g.get("energy_alternatives",[]):
+                choices.append(("energy_entity",entity,_series(states.get(entity,[]),"energy",factor)))
             if g["kind"]=="fuel":
                 entity=g.get("fuel_mass_entity")
                 if entity:
@@ -112,26 +115,29 @@ async def async_calibrate(hass, config):
             priority={"fuel_mass":0,"energy_entity":1,"power_entity":2,"fuel_mass_estimated":3,"recorded_fuel_rate":4,"level_runtime":5,"manual_runtime":6}
             choices.sort(key=lambda item:priority[item[0]])
             report={}
-            selected=None
+            selected=[]
             for method,entity,series in choices:
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
-                report[method]=round(coverage,3)
-                if coverage>=threshold and entity not in used and entity not in temp_ids and selected is None:
-                    selected=(method,entity,series)
-            diagnostics[key]={"coverage":report,"source":selected[0] if selected else None,"entity":selected[1] if selected else None}
-            if selected is None and g.get("off_only_entity"):
+                report[method+":"+entity]=round(coverage,3)
+                if coverage>0 and entity not in used and entity not in temp_ids:
+                    selected.append((method,entity,series))
+            diagnostics[key]={"coverage":report,"source":None,"entity":None}
+            if g.get("off_only_entity"):
                 off=g["off_only_entity"]
                 # Unknown or enabled states invalidate the interval, not zero heat.
                 series=RateSeries([Sample(s.last_updated.timestamp(),0. if s.state=="off" else None) for s in states.get(off,[])])
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
                 if coverage>0 and off not in used and off not in temp_ids:
-                    selected=("confirmed_off_only",off,series)
-                    diagnostics[key].update(source=selected[0],entity=off)
+                    selected.append(("confirmed_off_only",off,series))
                     diagnostics[key]["coverage"]["confirmed_off_only"]=round(coverage,3)
             if selected:
-                used.add(selected[1])
-                counters.append((g["kind"],selected[2]))
+                used.update(item[1] for item in selected)
+                combined=AlternativeSeries(item[2] for item in selected)
+                diagnostics[key].update(source=selected[0][0] if len(selected)==1 else "interval_fallback",entity=", ".join(dict.fromkeys(item[1] for item in selected)))
+                diagnostics[key]["coverage"]["combined"] = round(_coverage(combined,start.timestamp(),end.timestamp(),step,age),3)
+                counters.append((g["kind"],combined))
         if len(counters)!=len(devices):
+            quality.update(complete_intervals=0,complete_fraction=0)
             return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         quality["complete_intervals"]=len(intervals)

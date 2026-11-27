@@ -81,3 +81,11 @@ class InputTests(unittest.TestCase):
         self.assertEqual(resolved["hp"]["energy_entity"],meter.entity_id)
         self.assertEqual(resolved["hp"]["off_only_entity"],control.entity_id)
         self.assertEqual(report["hp"]["candidates"][0]["entity"],meter.entity_id)
+
+    def test_alternative_onecta_counters_exclude_cooling(self):
+        control=N(entity_id="climate.unit_room_temperature",unique_id="control",device_id="a",platform="daikin_onecta",disabled_by=None,config_entry_id="one")
+        meters=[N(entity_id="sensor.unit_climatecontrol_"+suffix,unique_id=suffix,device_id="a",platform="daikin_onecta",disabled_by=None,config_entry_id="one") for suffix in ("heating_yearly_electrical_consumption","heating_daily_electrical_consumption","cooling_daily_electrical_consumption")]
+        state=N(state="10",attributes={"unit_of_measurement":"kWh","state_class":"total_increasing"})
+        resolved,_=m.calibration_inputs({"hp":{"kind":"heat_pump","technical_configured":False,"control_entity":control.entity_id}},[control,*meters],lambda _:state)
+        self.assertEqual(resolved["hp"]["energy_entity"],meters[0].entity_id)
+        self.assertEqual(resolved["hp"]["energy_alternatives"],[meters[1].entity_id])

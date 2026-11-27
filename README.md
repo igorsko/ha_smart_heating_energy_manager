@@ -31,3 +31,7 @@ Learned parameters remain stored for diagnostics but are used through effective_
 ### Partial calibration and meter discovery (0.3.12)
 
 Vendor heating-period counters can be recognized even when their state class is measurement or absent, subject to appliance identity and explicit counter naming. Candidate units and state classes are exposed in diagnostics. Unmetered electric heating sources contribute zero only during recorded, freshness-limited explicit OFF intervals; enabled or unknown states invalidate the interval. Fuel sources are not inferred off this way. No actuator commands. / La calibrazione usa soltanto intervalli completi; i generatori elettrici senza misura possono contribuire zero solo durante intervalli di spegnimento documentato.
+
+### Interval-level history selection (0.3.13)
+
+Global per-source coverage is diagnostic rather than an exclusion threshold. Each generator uses one valid source per interval, with alternate heating-only Daikin counters and confirmed-off fallback. Missing or stale values and counter resets remain invalid. Complete joint intervals and model quality gates still apply. / La copertura viene valutata per intervallo senza sommare contatori sovrapposti; i dati mancanti non diventano zero.

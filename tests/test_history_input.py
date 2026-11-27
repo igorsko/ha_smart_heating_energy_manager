@@ -47,3 +47,12 @@ class HistoryTests(unittest.TestCase):
             [("fuel",self.series(0,1,2,3)),("resistance",off)],0,10800)
         self.assertEqual(len(intervals),2)
         self.assertTrue(all(s.resistance_kwh==0 for s in intervals))
+
+    def test_alternatives_use_one_source_and_preserve_unknown(self):
+        primary=self.series(0,2,None,5,6)
+        secondary=self.series(0,9,10,11,None)
+        combined=h.AlternativeSeries([primary,secondary])
+        self.assertEqual(combined.counter_delta(0,3600,7200),2)
+        self.assertEqual(combined.counter_delta(3600,7200,7200),1)
+        self.assertEqual(combined.counter_delta(10800,14400,7200),1)
+        self.assertIsNone(h.AlternativeSeries([self.series(0,None)]).counter_delta(0,3600,7200))

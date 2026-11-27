@@ -105,19 +105,15 @@
       "advanced_details": {
         "title": "Generator technical parameters",
         "data": {
-          "name": "Name",
-          "kind": "Type",
           "efficiency": "COP or efficiency fraction",
           "capacity_kw": "Thermal capacity (kW)",
           "fuel_price": "Fuel price",
           "fuel_quantity": "Purchased quantity",
           "fuel_energy_kwh": "Energy per fuel unit (kWh)",
           "enabled": "Enabled",
-          "control_entity": "Control entity (mapping only)",
           "state_entity": "State entity",
           "energy_entity": "Energy meter",
           "power_entity": "Power sensor",
-          "temperature_entity": "Temperature sensor",
           "energy_is_useful_heat": "Fuel counter measures useful heat",
           "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
           "active_states": "Actual heating states (comma separated)",
@@ -128,9 +124,10 @@
           "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
           "fuel_mass_estimated": "Mass counter is estimated",
           "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)",
-          "cop_curve": "COP curve (outdoor °C=COP, one point per line)"
+          "cop_curve": "COP curve (outdoor °C=COP, one point per line)",
+          "confirm_parameters": "I confirm the technical parameters (capacity, efficiency and fuel data where applicable)"
         },
-        "description": "Only parameters relevant to the selected generator type are shown. Use the main menu to change the device."
+        "description": "Detected fields are prefilled. Clear a mapping to restore automatic discovery. Automatic entities: {automatic_entities}. Alternative meters: {alternative_entities}."
       },
       "advanced_generator": {
         "data": {

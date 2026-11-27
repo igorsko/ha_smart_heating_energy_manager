@@ -112,6 +112,12 @@ def calibration_inputs(devices, entries, read):
                 candidate=unique(("_electrical_power","_electrical_input_power","_power_consumption","_input_power","_active_power","_power_absorption"),("W","kW","MW"))
                 if candidate:
                     g["power_entity"]=candidate
+            if g["kind"]=="heat_pump" and control and control.platform not in ("daikin_onecta","daikin"):
+                from .onboarding import suggest_sensors
+                electrical=[e for e in siblings if not any(t in e.entity_id.lower() for t in ("thermal","heat_output","heating_capacity","cooling","produced"))]
+                for field,value in suggest_sensors(electrical,read,"heat_pump").items():
+                    if not g.get(field):
+                        g[field]=value
             if g["kind"]=="resistance":
                 from .onboarding import suggest_sensors
                 for field,value in suggest_sensors(siblings,read,"resistance").items():

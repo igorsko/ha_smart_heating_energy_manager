@@ -51,3 +51,7 @@ Explicit rated useful heating output from the selected device can enable provisi
 ### Live heat pump input (0.3.16)
 
 Explicit electrical input power sensors are discovered independently of nominal thermal capacity. The dashboard shows instantaneous electrical input, the configured or assumed COP, and estimated useful heat only when heating action is confirmed. Missing or stale power stays unknown; COP is not measured. / La plancia mostra assorbimento elettrico, COP utilizzato e potenza termica stimata quando l’erogazione è confermata.
+
+### Generator configuration (0.3.17)
+
+The advanced form uses the same calibration resolver as live monitoring. Automatic entity suggestions remain dynamic unless overridden; clear manual mappings to return to discovery. Alternative counters are shown. Technical estimates require explicit confirmation before becoming configured ratings. Duplicate name and room thermometer controls are removed from advanced generator options; room thermometers belong to zones. Vertigo heating request is not confirmed runtime. / Le associazioni automatiche sono precompilate; i parametri tecnici richiedono conferma esplicita.

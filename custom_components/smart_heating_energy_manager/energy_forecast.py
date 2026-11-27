@@ -169,7 +169,14 @@ class EnergyForecast(SensorEntity):
                 attrs["joint_plan"]={"status":"battery_not_modeled"}
             base=settings.get("base_kw")
             if settings.get("base_home_power"):
-                if self._profile_date!=now.date():
+                excluded=set(settings.get("base_excluded_power",[]))
+                electric=[g for g in d.get("generators",{}).values() if g.get("enabled",True) and g.get("kind") in ("heat_pump","resistance")]
+                required=[g.get("power_entity") for g in electric]
+                if d.get("dhw",{}).get("entity"):
+                    required.append(d["dhw"].get("power"))
+                if any(not e or e not in excluded for e in required):
+                    attrs["joint_plan"]={"status":"configure_excluded_loads"}
+                if "joint_plan" not in attrs and self._profile_date!=now.date():
                     try:
                         from .load_profile import async_profile
                         self._base_profile=await async_profile(self.hass,settings)

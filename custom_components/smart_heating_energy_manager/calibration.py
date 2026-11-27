@@ -162,3 +162,16 @@ def validate_holdout(intervals, known_cop=None, settings=None):
             "hp_baseline_mae_c":sum(hp_baseline)/len(hp_baseline) if hp_baseline else None,
             "training_cop":model.cop,"training_cop_source":model.cop_source,
             "method":"chronological_one_step_measured_inputs"}
+
+
+def cooling_consistency(model, cooling):
+    """Compare independently estimated apparent time constants, diagnostic only."""
+    if model is None or cooling.get("status")!="validated":
+        return {"status":"insufficient_data"}
+    tau=cooling.get("tau_hours")
+    if not isinstance(tau,(int,float)) or not math.isfinite(tau) or tau<=0:
+        return {"status":"insufficient_data"}
+    fitted=1000*model.capacity_kwh_k/model.loss_w_k
+    ratio=fitted/tau
+    return {"status":"consistent" if .67<=ratio<=1.5 else "disagreement",
+            "fitted_tau_hours":fitted,"passive_tau_hours":tau,"ratio":ratio}

@@ -43,7 +43,7 @@ async def async_update_ui(hass):
                            for k,g in data.get("generators",{}).items()],
                        "zones":zone_view(areas,data.get("zones",{}))})
     await panel_custom.async_register_panel(hass, frontend_url_path=PATH,
-        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.2",
+        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.3",
         sidebar_title="Smart Heating",sidebar_icon="mdi:home-thermometer",
         config={"installations":config},require_admin=False)
     state["owned"] = True

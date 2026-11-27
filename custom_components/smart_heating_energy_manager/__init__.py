@@ -24,6 +24,11 @@ async def _update_ui(hass, entry, loaded):
             _LOGGER.exception("Unable to register Smart Heating panel; sensors remain operational")
 
 async def async_setup_entry(hass, entry):
+    state = hass.data.setdefault(DOMAIN+"_ui", {})
+    if not state.get("zone_api_registered"):
+        from .zone_api import register
+        register(hass)
+        state["zone_api_registered"] = True
     store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.calibration")
     config = {**entry.data, **entry.options}
     saved = current(await store.async_load(), config)

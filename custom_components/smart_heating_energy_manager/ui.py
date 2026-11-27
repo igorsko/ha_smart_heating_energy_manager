@@ -39,11 +39,11 @@ async def async_update_ui(hass):
         config.append({"title": entry.title, "id": entry.entry_id, "entities": entities,
                        "indoor":data.get("indoor"),"outdoor":data.get("outdoor"),
                        "generators": [{"id":k,"name":g["name"],"kind":g["kind"],
-                           "state_entity":g.get("state_entity"),"temperature_entity":g.get("temperature_entity")}
+                           "state_entity":g.get("state_entity") or g.get("control_entity"),"temperature_entity":g.get("temperature_entity")}
                            for k,g in data.get("generators",{}).items()],
                        "zones":zone_view(areas,data.get("zones",{}),data.get("outdoor"))})
     await panel_custom.async_register_panel(hass, frontend_url_path=PATH,
-        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.5",
+        webcomponent_name="smart-heating-panel",module_url=JS+"?v=0.1.6",
         sidebar_title="Smart Heating",sidebar_icon="mdi:home-thermometer",
         config={"installations":config},require_admin=False)
     state["owned"] = True

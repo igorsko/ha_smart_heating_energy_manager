@@ -15,69 +15,34 @@
           "add_generator": "Add generator",
           "edit_generator": "Edit generator",
           "remove_generator": "Remove generator",
-          "building": "Building and sensors",
+          "building": "Reference temperatures",
           "finish": "Save",
           "discover_winnet": "Import WiNET device",
           "tariff": "Electricity tariff",
           "display": "Display",
-          "zones": "Heating zones"
+          "zones": "Heating zones",
+          "advanced_generator": "Generator technical settings",
+          "advanced_settings": "Calibration and advanced settings",
+          "advanced_tariff": "Advanced tariff components"
         }
       },
       "add_generator": {
         "title": "Add generator",
         "data": {
-          "name": "Name",
+          "name": "Name (optional when selecting an entity)",
           "kind": "Type",
-          "efficiency": "COP or efficiency fraction",
-          "capacity_kw": "Thermal capacity (kW)",
-          "fuel_price": "Fuel price",
-          "fuel_quantity": "Purchased quantity",
-          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
-          "enabled": "Enabled",
-          "control_entity": "Control entity (mapping only)",
-          "state_entity": "State entity",
-          "energy_entity": "Energy meter",
-          "power_entity": "Power sensor",
-          "temperature_entity": "Temperature sensor",
-          "energy_is_useful_heat": "Fuel counter measures useful heat",
-          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
-          "active_states": "Actual heating states (comma separated)",
-          "inactive_states": "Non-heating states (comma separated)",
-          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
-          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
-          "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
-          "fuel_mass_estimated": "Mass counter is estimated",
-          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
-        }
+          "control_entity": "Heating entity"
+        },
+        "description": "Start without technical ratings. Economic calculations require verified parameters in advanced settings."
       },
       "edit_details": {
         "title": "Edit generator",
         "data": {
-          "name": "Name",
+          "name": "Name (optional when selecting an entity)",
           "kind": "Type",
-          "efficiency": "COP or efficiency fraction",
-          "capacity_kw": "Thermal capacity (kW)",
-          "fuel_price": "Fuel price",
-          "fuel_quantity": "Purchased quantity",
-          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
-          "enabled": "Enabled",
-          "control_entity": "Control entity (mapping only)",
-          "state_entity": "State entity",
-          "energy_entity": "Energy meter",
-          "power_entity": "Power sensor",
-          "temperature_entity": "Temperature sensor",
-          "energy_is_useful_heat": "Fuel counter measures useful heat",
-          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
-          "active_states": "Actual heating states (comma separated)",
-          "inactive_states": "Non-heating states (comma separated)",
-          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
-          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
-          "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
-          "fuel_mass_estimated": "Mass counter is estimated",
-          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
-        }
+          "control_entity": "Heating entity"
+        },
+        "description": "Start without technical ratings. Economic calculations require verified parameters in advanced settings."
       },
       "edit_generator": {
         "data": {
@@ -90,19 +55,10 @@
         }
       },
       "building": {
+        "title": "Reference temperatures",
         "data": {
           "indoor": "Indoor temperature",
-          "outdoor": "Outdoor temperature",
-          "h": "Heat loss (W/K)",
-          "index_max_age_hours": "Maximum index age (hours)",
-          "history_enabled": "Enable experimental historical calibration",
-          "history_days": "History days",
-          "history_interval_minutes": "Analysis interval (minutes)",
-          "history_max_age_hours": "Maximum sample age (hours)",
-          "history_min_coverage": "Minimum history coverage (fraction)",
-          "apply_learned": "Use learned heat loss",
-          "calibration_locked": "Lock calibration updates",
-          "reset_calibration": "Invalidate previous calibration"
+          "outdoor": "Outdoor temperature"
         }
       },
       "discover_winnet": {
@@ -114,41 +70,17 @@
       "confirm_discovery": {
         "title": "Verify mappings and parameters",
         "data": {
-          "name": "Name",
+          "name": "Name (optional when selecting an entity)",
           "kind": "Type",
-          "efficiency": "COP or efficiency fraction",
-          "capacity_kw": "Thermal capacity (kW)",
-          "fuel_price": "Fuel price",
-          "fuel_quantity": "Purchased quantity",
-          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
-          "enabled": "Enabled",
-          "control_entity": "Control entity (mapping only)",
-          "state_entity": "State entity",
-          "energy_entity": "Energy meter",
-          "power_entity": "Power sensor",
-          "temperature_entity": "Temperature sensor",
-          "energy_is_useful_heat": "Fuel counter measures useful heat",
-          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
-          "active_states": "Actual heating states (comma separated)",
-          "inactive_states": "Non-heating states (comma separated)",
-          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
-          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
-          "level_entity": "Power level entity",
-          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
-          "fuel_mass_estimated": "Mass counter is estimated",
-          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
-        }
+          "control_entity": "Heating entity"
+        },
+        "description": "Start without technical ratings. Economic calculations require verified parameters in advanced settings."
       },
       "tariff": {
         "data": {
           "pun": "Price index sensor",
           "use_index": "Use price index",
-          "fixed": "Fixed all-inclusive price",
-          "spread": "Supplier spread",
-          "losses": "Grid loss fraction",
-          "variable": "Variable charges",
-          "tax": "Excise",
-          "vat": "VAT fraction"
+          "fixed": "Fixed all-inclusive price"
         }
       },
       "display": {
@@ -170,12 +102,83 @@
           "temperature": "Thermometer",
           "sources": "Heating sources"
         }
+      },
+      "advanced_details": {
+        "title": "Generator technical parameters",
+        "data": {
+          "name": "Name",
+          "kind": "Type",
+          "efficiency": "COP or efficiency fraction",
+          "capacity_kw": "Thermal capacity (kW)",
+          "fuel_price": "Fuel price",
+          "fuel_quantity": "Purchased quantity",
+          "fuel_energy_kwh": "Energy per fuel unit (kWh)",
+          "enabled": "Enabled",
+          "control_entity": "Control entity (mapping only)",
+          "state_entity": "State entity",
+          "energy_entity": "Energy meter",
+          "power_entity": "Power sensor",
+          "temperature_entity": "Temperature sensor",
+          "energy_is_useful_heat": "Fuel counter measures useful heat",
+          "manual_input_rate": "Manual input: fuel units/h or electrical kW (0 = disabled)",
+          "active_states": "Actual heating states (comma separated)",
+          "inactive_states": "Non-heating states (comma separated)",
+          "fuel_mass_unit": "Fuel mass unit (matches price and energy per unit)",
+          "fuel_mass_entity": "Cumulative consumed fuel mass counter",
+          "level_entity": "Power level entity",
+          "level_rates": "Fuel rates by level (units/h, one level=rate per line)",
+          "fuel_mass_estimated": "Mass counter is estimated",
+          "fuel_rate_entity": "Fuel consumption rate sensor (e.g. kg/h)"
+        }
+      },
+      "advanced_generator": {
+        "data": {
+          "generator": "Generator"
+        },
+        "title": "Advanced generator settings"
+      },
+      "advanced_settings": {
+        "data": {
+          "h": "Heat loss (W/K)",
+          "index_max_age_hours": "Maximum index age (hours)",
+          "history_enabled": "Enable experimental historical calibration",
+          "history_days": "History days",
+          "history_interval_minutes": "Analysis interval (minutes)",
+          "history_max_age_hours": "Maximum sample age (hours)",
+          "history_min_coverage": "Minimum history coverage (fraction)",
+          "apply_learned": "Use learned heat loss",
+          "calibration_locked": "Lock calibration updates",
+          "reset_calibration": "Invalidate previous calibration"
+        },
+        "title": "Calibration and advanced settings"
+      },
+      "advanced_tariff": {
+        "data": {
+          "pun": "Price index sensor",
+          "use_index": "Use price index",
+          "fixed": "Fixed all-inclusive price",
+          "spread": "Supplier spread",
+          "losses": "Grid loss fraction",
+          "variable": "Variable charges",
+          "tax": "Excise",
+          "vat": "VAT fraction"
+        },
+        "title": "Advanced tariff components"
       }
     },
     "error": {
       "invalid_generator": "Invalid generator parameters",
       "no_discovered_entities": "No compatible entities",
       "no_areas": "No Home Assistant areas configured"
+    }
+  },
+  "selector": {
+    "generator_kind": {
+      "options": {
+        "heat_pump": "Heat pump / air conditioner",
+        "resistance": "Electric resistance heater",
+        "fuel": "Fuel stove or boiler"
+      }
     }
   }
 }

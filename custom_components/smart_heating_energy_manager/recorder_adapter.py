@@ -5,6 +5,7 @@ from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.util import dt as dt_util
 from .calibration import fit
+from .onboarding import ready
 from .history_input import Sample, Series, RateSeries, build_intervals
 from .model import finite
 from .fuel import parse_rates, fuel_rate_series, mass_to_units
@@ -52,6 +53,9 @@ async def async_calibrate(hass, config):
     devices=list(config.get("generators",{}).items())
     if not devices:
         return {"status":"no_generators"}
+    pending=[key for key,g in devices if not ready(g)]
+    if pending:
+        return {"status":"configure_generator_parameters","pending_generators":pending}
     ids=list(dict.fromkeys([config["indoor"],config["outdoor"]]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity") if g.get(k)]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))

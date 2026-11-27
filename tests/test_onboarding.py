@@ -23,3 +23,17 @@ class OnboardingTests(unittest.TestCase):
         self.assertEqual(m.suggest_sensors(entries,lambda _:state,"fuel"),{})
         entries.append(SimpleNamespace(entity_id="sensor.power2"))
         self.assertEqual(m.suggest_sensors(entries,lambda _:state,"heat_pump"),{})
+
+    def test_rebind_preserves_identity_but_clears_old_meters(self):
+        old={"kind":"fuel","control_entity":"climate.old","technical_configured":True,"fuel_mass_entity":"sensor.old_mass","capacity_kw":9,"enabled":False}
+        data=m.merge_basic(old,{"kind":"fuel","control_entity":"climate.new"},"Stove")
+        self.assertEqual(data["control_entity"],"climate.new")
+        self.assertFalse(m.ready(data))
+        self.assertNotIn("fuel_mass_entity",data)
+        self.assertFalse(data["enabled"])
+        self.assertEqual(old["capacity_kw"],9)
+    def test_change_kind(self):
+        data=m.merge_basic({"kind":"heat_pump","control_entity":"climate.stove","cop_curve":"0=3","technical_configured":True},{"kind":"fuel","control_entity":"climate.stove"},"Stove")
+        self.assertFalse(m.ready(data))
+        self.assertEqual(data["kind"],"fuel")
+        self.assertNotIn("cop_curve",data)

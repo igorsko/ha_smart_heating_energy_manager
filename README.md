@@ -91,3 +91,7 @@ Independent apparent time constant from historical nighttime periods (Recorder s
 ### Multizone cooling (0.3.26)
 
 Separate apparent cooling time constants and chronological validation for each mapped indoor thermometer and explicit thermal group. All generators must be OFF, not just local generators; group means deduplicate shared thermometers. These are diagnostic apparent constants, not identified inter-zone heat transfer coefficients. / Modello di raffreddamento separato per zona e gruppo, senza nuovi campi di configurazione.
+
+### Calibration diagnostics (0.3.27)
+
+Cooling exclusions report nighttime evidence, each generator OFF evidence, temperature coverage and temperature differences. Zones may be excluded from the building reference while retaining independent monitoring. Existing zones remain included by default. Passive and energy-based time constants are compared diagnostically, without automatic parameter changes. Prospective temperature forecast verification remains conditional for indoor scenarios. / Diagnostica dei periodi scartati e scelta delle zone di riferimento.

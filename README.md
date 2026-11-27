@@ -71,3 +71,7 @@ WiNET display uses the dedicated state sensor and its state_code, independently 
 ### Generator inventory (0.3.21)
 
 Diagnostics show associated registry entities, including disabled and unavailable entities, raw readings, units, device/state classes and selected energy counters for every generator type. Disabled entries are diagnostic only. WiNET state accepts numeric codes, numeric strings and documented textual states. / Inventario delle entità per tutti i generatori, con stato originale e fonti energetiche selezionate.
+
+### Diagnostic export (0.3.22)
+
+Open Diagnostics and select Export diagnostics JSON or Copy diagnostics. The report includes generator mappings, deduplicated entity readings with explicitly selected attributes, live estimates and calibration summaries. It does not serialize credentials or arbitrary configuration. Review entity names and operating data before sharing. / Esporta o copia la diagnostica JSON dalla plancia; controlla i dati prima di condividerli.

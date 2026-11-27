@@ -166,6 +166,9 @@ class EnergyForecast(SensorEntity):
                 from .temperature_zones import average_temperature
                 record=current(self.hass.data[DOMAIN][self.entry_id]["learned"],ref)
                 capacity=record["fit"]["capacity_kwh_k"] if source=="learned" and record else d.get("thermal_capacity")
+                if capacity is None:
+                    from .bootstrap import building_estimate
+                    _,capacity=building_estimate(d)
                 def read_temperature(entity):
                     state=self.hass.states.get(entity)
                     if not state:

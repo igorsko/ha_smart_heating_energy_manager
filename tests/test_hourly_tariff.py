@@ -19,6 +19,10 @@ class HourlyTariffTests(unittest.TestCase):
         a={"unit_of_measurement":"€/kWh","prices":{"2026-10-25T02:00:00+02:00":.1,"2026-10-25T02:00:00+01:00":.2,"2026-10-25T03:00:00":.3}}
         self.assertEqual(len(m.parse_prices(a)),2)
         self.assertEqual(m.parse_prices({"unit_of_measurement":"W","prices":a["prices"]}),{})
+    def test_direct_attributes(self):
+        from datetime import datetime, timezone
+        a={"unit_of_measurement":"€/kWh",datetime(2026,1,1,10,tzinfo=timezone.utc):.2,"2026-01-01 11:00:00+00:00":.3,"2026-01-01 12:00:00+00:00":None}
+        self.assertEqual(m.parse_prices(a),{"2026-01-01T10:00:00+00:00":.2,"2026-01-01T11:00:00+00:00":.3})
     def test_fallback(self):
         self.assertEqual(m.price_at("2026-11-27T12:00:00+01:00",{},.3,"index"),(.3,"current_index_assumed"))
     def test_joint_price_changes_window(self):

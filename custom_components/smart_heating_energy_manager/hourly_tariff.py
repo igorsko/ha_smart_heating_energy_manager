@@ -6,7 +6,7 @@ from .model import electricity_price
 
 def hour_stamp(value):
     try:
-        stamp=datetime.fromisoformat(value)
+        stamp=value if isinstance(value,datetime) else datetime.fromisoformat(value)
     except (ValueError,TypeError):
         return None
     if stamp.tzinfo is None or stamp.minute or stamp.second or stamp.microsecond:
@@ -23,8 +23,9 @@ def parse_prices(attrs):
     prices={}
     conflicts=set()
     default_unit=attrs.get("unit_of_measurement")
-    for key in ("prices","forecast","hourly_prices","raw_today","raw_tomorrow"):
-        data=attrs.get(key)
+    # Providers may expose timestamps directly as attribute keys.
+    containers=[attrs]+[attrs.get(k) for k in ("prices","forecast","hourly_prices","raw_today","raw_tomorrow")]
+    for data in containers:
         if isinstance(data,Mapping):
             items=[{"start":k,"price":v} for k,v in data.items()]
         elif isinstance(data,list):

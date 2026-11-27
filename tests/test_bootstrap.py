@@ -64,3 +64,22 @@ class BootstrapTests(unittest.TestCase):
         states["climate.unit"].attributes={}
         self.assertIsNone(m.heat_pump_live(d,states.get,7,now)["heat_kw"])
         self.assertIsNone(m.heat_pump_live(d,states.get,7,now+timedelta(minutes=16))["power_w"])
+
+    def test_hourly_telemetry(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace as N
+        now=datetime.now(timezone.utc)
+        hp={"kind":"heat_pump","technical_configured":False}
+        row=m.heat_pump_live(hp,lambda _:None,7,now,{"power_w":600,"power_entity":"sensor.energy","interval_minutes":60},.3)
+        self.assertEqual(row["power_source"],"counter_average")
+        self.assertAlmostEqual(row["cost_per_hour"],.18)
+        self.assertIsNone(row["heat_kw"])
+        d={"kind":"fuel","fuel_rate_entity":"sensor.rate","state_entity":"binary_sensor.burning","active_states":"on","inactive_states":"off","fuel_price":7.79,"fuel_quantity":15,"fuel_energy_kwh":4.8,"efficiency":.9}
+        states={"sensor.rate":N(state=".84",attributes={"unit_of_measurement":"kg/h"},last_updated=now),"binary_sensor.burning":N(state="on")}
+        row=m.fuel_live(d,states.get,now)
+        self.assertAlmostEqual(row["cost_per_hour"],.84*7.79/15)
+        self.assertAlmostEqual(row["heat_kw"],.84*4.8*.9)
+        states["binary_sensor.burning"].state="off"
+        self.assertEqual(m.fuel_live(d,states.get,now)["rate_kg_h"],0)
+        states["binary_sensor.burning"].state="unknown"
+        self.assertIsNone(m.fuel_live(d,states.get,now)["rate_kg_h"])

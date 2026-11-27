@@ -192,7 +192,9 @@
           "grid_export": "Grid export power (positive export)",
           "battery_soc": "Battery charge (%)",
           "weather": "Hourly weather forecast",
-          "forecast_target": "Desired indoor temperature (°C)"
+          "forecast_target": "Desired indoor temperature (°C)",
+          "thermal_capacity": "Manual thermal capacity (kWh/K)",
+          "preheat_margin": "Maximum preheat scenario increase (°C)"
         }
       },
       "dhw": {

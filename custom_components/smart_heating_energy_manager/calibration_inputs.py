@@ -14,6 +14,16 @@ def calibration_inputs(devices, entries, read):
         g=dict(original)
         control=next((e for e in entries if e.entity_id==g.get("control_entity")),None)
         siblings=[e for e in entries if control and control.device_id and e.device_id==control.device_id and e.platform==control.platform and not e.disabled_by]
+        # Onecta can register ClimateControl sensors on another device record.
+        # Require the exact appliance prefix and same integration config entry.
+        if control and control.platform=="daikin_onecta" and control.entity_id.startswith("climate.") and control.entity_id.endswith("_room_temperature"):
+            prefix=control.entity_id.split(".",1)[1].removesuffix("_room_temperature")+"_climatecontrol_"
+            config_id=getattr(control,"config_entry_id",None)
+            if config_id:
+                siblings=list({e.entity_id:e for e in siblings+[
+                    e for e in entries if e.platform==control.platform
+                    and getattr(e,"config_entry_id",None)==config_id and not e.disabled_by
+                    and e.entity_id.startswith("sensor."+prefix)]}.values())
         def unique(suffixes, units, classes=()):
             matches=[]
             for e in siblings:
@@ -59,7 +69,7 @@ def calibration_inputs(devices, entries, read):
                 # overlapping counters or use cooling/combined consumption.
                 for period in ("yearly","annual","monthly","weekly","daily"):
                     candidate=unique(tuple("_"+x for x in (
-                        "heating_energy_"+period,period+"_heating_energy",
+                        "heating_"+period+"_electrical_consumption","heating_energy_"+period,period+"_heating_energy",
                         "heating_energy_consumption_"+period,period+"_heating_energy_consumption",
                         "heating_"+period+"_energy_consumption","energy_consumption_heating_"+period,
                         "energy_consumption_"+period+"_heating","heating_energy_"+period+"_consumption","heating_energy_consumption_"+period+"_total")),("Wh","kWh","MWh"),("total","total_increasing"))
@@ -91,16 +101,25 @@ def calibration_inputs(devices, entries, read):
                         g[field]=value
             if not ready(original):
                 g["efficiency"]=3.0 if g["kind"]=="heat_pump" else 1.0
+        # A resistance heater may be calibrated from confirmed runtime and
+        # a user-supplied electrical rating; never assume a nominal wattage.
+        if g.get("kind")=="resistance" and control and control.platform=="olimpia_vertigo" and control.entity_id.startswith("switch.") and control.entity_id.endswith(("_riscaldamento","_heating")):
+            if not g.get("state_entity"):
+                g["state_entity"]=control.entity_id
+            if g["state_entity"]==control.entity_id:
+                g["active_states"]=g.get("active_states") or "on"
+                g["inactive_states"]=g.get("inactive_states") or "off"
+        runtime=bool(g.get("state_entity") and finite(g.get("manual_input_rate")) and g["manual_input_rate"]>0 and g.get("active_states") and g.get("inactive_states"))
         meter=bool(g.get("energy_entity") or g.get("power_entity"))
         if g.get("kind")=="fuel":
             heat_parameters=finite(g.get("fuel_energy_kwh")) and g["fuel_energy_kwh"]>0 and finite(g.get("efficiency")) and 0<g["efficiency"]<=1
             source=bool(g.get("fuel_mass_entity") or (g.get("fuel_rate_entity") and g.get("state_entity") and g.get("active_states") and g.get("inactive_states")) or (meter and g.get("energy_is_useful_heat")))
             usable=bool(heat_parameters and source)
         else:
-            usable=meter
+            usable=meter or (g.get("kind")=="resistance" and runtime)
         # Complete manual configurations retain their existing runtime fallback.
         if ready(original):
             usable=True
-        report[key]={"usable":usable,"provisional":not ready(original),"entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity") if g.get(k)}}
+        report[key]={"usable":usable,"provisional":not ready(original),"reason":None if usable else "missing_meter_or_confirmed_runtime" if g.get("kind")=="resistance" else "missing_energy_source","entities":{k:g[k] for k in ("energy_entity","power_entity","fuel_mass_entity","fuel_rate_entity","state_entity") if g.get(k)}}
         result[key]=g
     return result,report

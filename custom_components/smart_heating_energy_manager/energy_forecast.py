@@ -65,6 +65,11 @@ class EnergyForecast(SensorEntity):
         attrs["grid_net_kw"]=imported.get("grid_net_kw")
         attrs["battery_net_kw"]=imported.get("battery_net_kw")
         attrs["home_kw"]=imported.get("home_kw")
+        from .dhw import snapshot, solar_window
+        dhw=snapshot(d.get("dhw",{}),self.hass.states.get)
+        if dhw:
+            dhw["solar_window"]=solar_window(self._forecast_attrs.get("solar_forecast",[]),dhw.get("ideal_heat_kwh"),dhw.get("rated_kw"),dt_util.utcnow()) if dhw.get("below_minimum") is False else None
+        attrs["dhw"]=dhw
         self._live_attrs=attrs
         self._attr_extra_state_attributes={**self._forecast_attrs,**self._live_attrs}
         self.async_write_ha_state()

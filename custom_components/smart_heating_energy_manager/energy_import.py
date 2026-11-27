@@ -75,7 +75,7 @@ def discover_power(prefs, read, siblings):
     # gateway even when charge/discharge counters are virtual helpers.
     batteries=[s for s in sources if s.get("type")=="battery"]
     solar_pool=sorted({e for s in sources if s.get("type")=="solar" and s.get("stat_energy_from") for e in siblings(s["stat_energy_from"])})
-    if len(batteries)==1:
+    if len(batteries)==1 and sum(s.get("type")=="solar" for s in sources)==1:
         s=batteries[0]
         if not s.get("entity_capacity") and not s.get("capacity"):
             candidate=unique(solar_pool,("_battery_capacity","_capacita_della_batteria"),"energy_storage",("Wh","kWh","MWh"))

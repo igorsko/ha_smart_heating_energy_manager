@@ -11,12 +11,12 @@ def _entry(hass, entry_id):
     entry = hass.config_entries.async_get_entry(entry_id)
     return entry if entry and entry.domain == DOMAIN else None
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): DOMAIN+"/zones",
     vol.Required("entry_id"): str,
 })
 @websocket_api.async_response
-@websocket_api.require_admin
 async def zones(hass, connection, msg):
     entry = _entry(hass,msg["entry_id"])
     if entry is None:
@@ -25,6 +25,7 @@ async def zones(hass, connection, msg):
     data={**entry.data,**entry.options}
     connection.send_result(msg["id"],zone_view(discover_areas(hass),data.get("zones",{}),data.get("outdoor")))
 
+@websocket_api.require_admin
 @websocket_api.websocket_command({
     vol.Required("type"): DOMAIN+"/save_zone",
     vol.Required("entry_id"): str,
@@ -33,7 +34,6 @@ async def zones(hass, connection, msg):
     vol.Required("sources"): [str],
 })
 @websocket_api.async_response
-@websocket_api.require_admin
 async def save_zone(hass, connection, msg):
     entry=_entry(hass,msg["entry_id"])
     areas=discover_areas(hass)

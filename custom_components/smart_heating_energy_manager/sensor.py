@@ -92,9 +92,32 @@ class HeatingSensor(SensorEntity):
         entries=list(er.async_get(self.hass).entities.values())
         devices={k:declared_capacity(winnet_parameters(v,entries,self.hass.states.get),entries,self.hass.states.get) for k,v in d.get("generators",{}).items()}
         from .calibration_inputs import calibration_inputs
-        from .bootstrap import heat_pump_live
+        from .bootstrap import heat_pump_live, fuel_live
         resolved,_=calibration_inputs(devices,entries,self.hass.states.get)
-        live={k:heat_pump_live(v,self.hass.states.get,outdoor,dt_util.utcnow()) for k,v in resolved.items() if v.get("kind")=="heat_pump"}
+        now=dt_util.utcnow()
+        live={k:heat_pump_live(v,self.hass.states.get,outdoor,now,electricity=price) for k,v in resolved.items() if v.get("kind")=="heat_pump"}
+        missing={k:resolved[k] for k,row in live.items() if row["power_w"] is None}
+        runtime=self.hass.data['smart_heating_energy_manager'][self._entry_id]
+        if missing:
+            from .recorder_adapter import recent_heat_pump_power
+            # Share the bounded query across the five polling sensors.
+            import asyncio
+            lock=runtime.setdefault("telemetry_lock",asyncio.Lock())
+            async with lock:
+                cached=runtime.get("telemetry_cache")
+                if not cached or (now-cached[0]).total_seconds()>=300:
+                    try:
+                        averages=await recent_heat_pump_power(self.hass,resolved,now)
+                    except Exception:
+                        import logging
+                        logging.getLogger(__name__).exception("Recent energy counter history unavailable")
+                        averages={}
+                    runtime["telemetry_cache"]=(now,averages)
+                else:
+                    averages=cached[1]
+            for k,v in missing.items():
+                live[k]=heat_pump_live(v,self.hass.states.get,outdoor,now,averages.get(k),price)
+        fuel={k:fuel_live(v,self.hass.states.get,now) for k,v in resolved.items() if v.get("kind")=="fuel"}
         efficiencies={}
         if "generators" not in d and "cop" in d and loss is not None and price is not None:
             result = estimate(indoor, outdoor, loss, price, d["cop"], d["pellet_price"],
@@ -132,7 +155,7 @@ class HeatingSensor(SensorEntity):
             "thermal_model": model_source, "loss_w_k": loss,
             "indoor_sensor_count":count, "indoor_sensor_total":len(indoor_ids), "indoor_sensors":indoor_ids,"outdoor_sensor":outdoor_id,
             "zones": zone_models, "thermal_groups":thermal_groups, "efficiencies": efficiencies,
-            "heat_pump_live":live,
+            "heat_pump_live":live,"fuel_live":fuel,
             "generator_capacity_status": {k:capacity_status(v,result.get("heat_demand")) for k,v in devices.items()},
             "generator_capacity": {k:{"kw":v.get("capacity_kw") if v.get("_capacity_origin") else None,"source":v.get("_capacity_origin"),"entities":v.get("_capacity_entities",[])} for k,v in devices.items()},
             "pending_generators": [k for k,v in d.get("generators",{}).items() if not ready(v)],

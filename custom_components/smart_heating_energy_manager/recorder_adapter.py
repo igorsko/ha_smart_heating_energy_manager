@@ -61,13 +61,14 @@ async def async_calibrate(hass, config):
     temp_ids=set(indoor_ids+[outdoor_id])
     ids=list(dict.fromkeys(indoor_ids+[outdoor_id]+[g[k] for _,g in devices for k in ("energy_entity","power_entity","state_entity","fuel_mass_entity","level_entity","fuel_rate_entity","off_only_entity") if g.get(k)]))
     ids=list(dict.fromkeys(ids+[e for _,g in devices for e in g.get("energy_alternatives",[])]))
+    ids=list(dict.fromkeys(ids+["sun.sun"]))
     end=dt_util.utcnow()
     start=end-timedelta(days=config.get("history_days",7))
     age=config.get("history_max_age_hours",2)*3600
     step=config.get("history_interval_minutes",60)*60
     # Coverage is diagnostic; the fit requires complete joint intervals.
     def calculate():
-        states=get_significant_states(hass,start-timedelta(seconds=age),end,entity_ids=ids,
+        states=get_significant_states(hass,start-timedelta(seconds=age+7200),end,entity_ids=ids,
             include_start_time_state=True,significant_changes_only=False,minimal_response=False,no_attributes=False)
         indoor=MeanSeries([_series(states.get(e,[]),"temperature") for e in indoor_ids])
         outdoor=_series(states.get(outdoor_id,[]),"temperature")
@@ -75,6 +76,7 @@ async def async_calibrate(hass, config):
         quality={"temperature":{e:temperature_coverage(_series(states.get(e,[]),"temperature"),start.timestamp(),end.timestamp(),step,age) for e in indoor_ids+[outdoor_id]},
                  "expected_intervals":int((end-start).total_seconds()//step)}
         counters,diagnostics,used=[],{},set()
+        cooling_off=[]
         for key,g in devices:
             choices=[]
             factor=g.get("efficiency",1) if g["kind"]=="resistance" else 1
@@ -143,6 +145,7 @@ async def async_calibrate(hass, config):
                 # Do not bridge a Recorder outage merely because the live state is OFF.
                 # Live state is not independent historical evidence.
                 series=ConfirmedOffSeries(observations)
+                cooling_off.append(series)
                 coverage=_coverage(series,start.timestamp(),end.timestamp(),step,age)
                 if coverage>0 and off not in used and off not in temp_ids:
                     selected.append(("confirmed_off_only",off,series))
@@ -153,9 +156,12 @@ async def async_calibrate(hass, config):
                 diagnostics[key].update(source=selected[0][0] if len(selected)==1 else "interval_fallback",entity=", ".join(dict.fromkeys(item[1] for item in selected)))
                 diagnostics[key]["coverage"]["combined"] = round(_coverage(combined,start.timestamp(),end.timestamp(),step,age),3)
                 counters.append((g["kind"],combined))
+        from .passive_cooling import collect, analyze
+        sun=ConfirmedOffSeries([Sample(s.last_updated.timestamp(),0. if s.state=="below_horizon" else 1. if s.state=="above_horizon" else None) for s in states.get("sun.sun",[])])
+        cooling=analyze(collect(indoor,outdoor,cooling_off,sun,start.timestamp(),end.timestamp(),step,age)) if len(cooling_off)==len(devices) else {"status":"missing_off_evidence","samples":0}
         if len(counters)!=len(devices):
             quality.update(complete_intervals=0,complete_fraction=0)
-            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality}
+            return {"status":"configure_missing_energy_source","generators":diagnostics,"inputs":input_report,"quality":quality,"passive_cooling":cooling}
         intervals=build_intervals(indoor,outdoor,counters,start.timestamp(),end.timestamp(),step,age)
         quality["complete_intervals"]=len(intervals)
         quality["generator_coverage"]={k:v["coverage"].get("combined",0) for k,v in diagnostics.items()}
@@ -170,7 +176,7 @@ async def async_calibrate(hass, config):
                 known_cop=next(iter(cops))
                 result=fit(intervals,known_cop=known_cop)
         return {"status":"estimated" if result else "insufficient_or_unidentifiable","generators":diagnostics,"inputs":input_report,"quality":quality,
-                "indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
+                "passive_cooling":cooling,"indoor_reference":indoor_ids,"outdoor_reference":outdoor_id,"intervals":len(intervals),"validation":validate_holdout(intervals,known_cop=known_cop),"fit":asdict(result) if result else None,"calculated_at":end.isoformat()}
     return await get_instance(hass).async_add_executor_job(calculate)
 
 

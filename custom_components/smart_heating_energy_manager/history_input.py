@@ -76,7 +76,7 @@ class ConfirmedOffSeries(Series):
     """Bounded OFF evidence from a change-only state history.
 
     A long unchanged OFF period is usable only between recorded OFF
-    observations (including a verified live OFF observation). Unknown
+    observations. Unknown
     or active states interrupt that evidence. Never extrapolate past
     the final observation beyond the ordinary freshness limit.
     """

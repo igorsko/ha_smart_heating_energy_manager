@@ -30,7 +30,7 @@
           "kind": "Tipologia",
           "control_entity": "Dispositivo di riscaldamento"
         },
-        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
+        "description": "Puoi iniziare senza dati tecnici. Il confronto dei costi può basarsi su stime iniziali. Per risultati più affidabili, verifica i parametri nelle impostazioni avanzate."
       },
       "edit_details": {
         "title": "Modifica generatore",
@@ -39,7 +39,7 @@
           "kind": "Tipologia",
           "control_entity": "Dispositivo di riscaldamento"
         },
-        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
+        "description": "Puoi iniziare senza dati tecnici. Il confronto dei costi può basarsi su stime iniziali. Per risultati più affidabili, verifica i parametri nelle impostazioni avanzate."
       },
       "edit_generator": {
         "data": {
@@ -56,7 +56,7 @@
         "data": {
           "outdoor": "Temperatura esterna",
           "building_area": "Superficie riscaldata (m²)",
-          "building_profile": "Profilo dispersioni edificio (stima iniziale)"
+          "building_profile": "Profilo di dispersione dell’edificio (stima iniziale)"
         },
         "description": "La temperatura interna è calcolata dalla media dei termometri delle zone. Seleziona un termometro esterno indipendente solo se non è già individuato nella zona esterna."
       },
@@ -73,13 +73,13 @@
           "kind": "Tipologia",
           "control_entity": "Dispositivo di riscaldamento"
         },
-        "description": "Puoi iniziare senza dati tecnici. I calcoli economici richiedono parametri verificati, modificabili nelle impostazioni avanzate."
+        "description": "Puoi iniziare senza dati tecnici. Il confronto dei costi può basarsi su stime iniziali. Per risultati più affidabili, verifica i parametri nelle impostazioni avanzate."
       },
       "tariff": {
         "data": {
           "pun": "Sensore PUN o indice",
           "use_index": "Utilizza indice",
-          "fixed": "Prezzo fisso tutto incluso"
+          "fixed": "Prezzo fisso per kWh, comprensivo delle componenti variabili"
         }
       },
       "display": {
@@ -109,15 +109,15 @@
           "kind": "Tipologia",
           "efficiency": "COP o rendimento (frazione)",
           "capacity_kw": "Potenza termica (kW)",
-          "fuel_price": "Prezzo combustibile",
+          "fuel_price": "Prezzo del combustibile",
           "fuel_quantity": "Quantità acquistata",
           "fuel_energy_kwh": "Energia per unità di combustibile (kWh)",
           "enabled": "Abilitato",
           "control_entity": "Entità di comando (solo associazione)",
           "state_entity": "Entità di stato",
-          "energy_entity": "Contatore energia",
-          "power_entity": "Sensore potenza",
-          "temperature_entity": "Sensore temperatura",
+          "energy_entity": "Contatore di energia",
+          "power_entity": "Sensore di potenza",
+          "temperature_entity": "Sensore di temperatura",
           "energy_is_useful_heat": "Il contatore del combustibile misura calore utile",
           "manual_input_rate": "Consumo manuale: unità combustibile/h oppure kW elettrici (0 = disattivato)",
           "active_states": "Stati di erogazione effettiva (separati da virgola)",
@@ -141,25 +141,25 @@
       "advanced_settings": {
         "data": {
           "h": "Dispersioni (W/K)",
-          "index_max_age_hours": "Validità massima indice (ore)",
-          "history_enabled": "Abilita calibrazione storica sperimentale",
-          "history_days": "Giorni di storico",
+          "index_max_age_hours": "Validità massima dell’indice di prezzo (ore)",
+          "history_enabled": "Abilita l’apprendimento del modello termico (sperimentale)",
+          "history_days": "Periodo di analisi dello storico (giorni)",
           "history_interval_minutes": "Intervallo di analisi (minuti)",
-          "history_max_age_hours": "Età massima campione (ore)",
-          "history_min_coverage": "Copertura minima storico (frazione)",
-          "apply_learned": "Usa dispersione termica appresa",
-          "calibration_locked": "Blocca aggiornamento calibrazione",
-          "reset_calibration": "Invalida calibrazione precedente"
+          "history_max_age_hours": "Validità massima dei campioni (ore)",
+          "history_min_coverage": "Soglia storica precedente (non più utilizzata)",
+          "apply_learned": "Usa il modello termico appreso e validato",
+          "calibration_locked": "Blocca l’aggiornamento del modello appreso",
+          "reset_calibration": "Azzera il modello appreso"
         },
         "title": "Calibrazione e parametri avanzati"
       },
       "advanced_tariff": {
         "data": {
-          "spread": "Spread fornitore",
-          "losses": "Frazione perdite di rete",
+          "spread": "Maggiorazione del fornitore (spread)",
+          "losses": "Coefficiente delle perdite di rete (in forma decimale)",
           "variable": "Componenti variabili",
           "tax": "Accise",
-          "vat": "Frazione IVA"
+          "vat": "Aliquota IVA (in forma decimale)"
         },
         "title": "Componenti tariffarie avanzate"
       },
@@ -182,12 +182,12 @@
         "description": "Il pannello Energia e il registro dispositivi sono utilizzati automaticamente. I sensori FV, rete e batteria qui sotto sono alternative manuali facoltative.",
         "data": {
           "pv_power": "Produzione fotovoltaica (alternativa manuale)",
-          "grid_export": "Potenza immessa in rete (positiva in esportazione) (alternativa manuale)",
+          "grid_export": "Potenza immessa in rete (positiva in immissione; alternativa manuale)",
           "battery_soc": "Carica batteria (%) (alternativa manuale)",
           "weather": "Previsioni meteo orarie",
           "forecast_target": "Temperatura interna desiderata (°C)",
           "thermal_capacity": "Capacità termica manuale (kWh/K)",
-          "preheat_margin": "Incremento massimo scenario preriscaldamento (°C)",
+          "preheat_margin": "Incremento massimo della temperatura per il preriscaldamento (°C)",
           "solar_gain_factor": "Apporto solare passivo (kWh termici per kWh FV; 0 = disabilitato)"
         }
       },
@@ -195,29 +195,29 @@
         "title": "Acqua calda sanitaria",
         "description": "Modulo consultivo facoltativo. Non modifica il boiler o i cicli sanitari. Lascia vuota l'entità per disattivarlo.",
         "data": {
-          "entity": "Entità boiler",
-          "temperature": "Temperatura acqua (sensore)",
+          "entity": "Entità dello scaldacqua",
+          "temperature": "Temperatura dell’acqua (sensore)",
           "power": "Potenza misurata",
-          "energy": "Contatore energia",
+          "energy": "Contatore di energia",
           "litres": "Capacità (litri)",
           "rated_kw": "Potenza nominale (kW)",
           "minimum_c": "Temperatura minima di riferimento (°C)",
-          "target_c": "Temperatura obiettivo di riferimento (°C)"
+          "target_c": "Temperatura desiderata (°C)"
         }
       },
       "joint_plan": {
-        "title": "Pianificazione energetica congiunta",
-        "description": "Simulazione consultiva a prezzi costanti. Inserisci il carico domestico esclusi riscaldamento e ACS. Nessun comando ai dispositivi.",
+        "title": "Pianificazione energetica integrata",
+        "description": "Simulazione consultiva con tariffe orarie, se disponibili. Inserisci il consumo di base dell’abitazione, esclusi riscaldamento e acqua calda sanitaria. Nessun comando viene inviato ai dispositivi.",
         "data": {
           "enabled": "Abilita simulazione",
           "base_kw": "Carico domestico medio (kW)",
-          "export_price": "Valore immissione (€/kWh)",
+          "export_price": "Prezzo dell’energia immessa in rete (€/kWh)",
           "use_battery": "Includi batteria",
           "capacity": "Capacità utile (kWh, opzionale se importata)",
           "reserve": "Riserva minima (%)",
-          "charge_kw": "Potenza massima carica (kW)",
-          "discharge_kw": "Potenza massima scarica (kW)",
-          "efficiency": "Rendimento per direzione (0–1)",
+          "charge_kw": "Potenza massima di carica (kW)",
+          "discharge_kw": "Potenza massima di scarica (kW)",
+          "efficiency": "Rendimento di ciascuna fase di carica e scarica (0–1)",
           "base_home_power": "Potenza totale abitazione (storico)",
           "base_excluded_power": "Sensori potenza di tutti i generatori elettrici e ACS da sottrarre"
         }
@@ -229,7 +229,7 @@
           "zone_thermal": "Parametri termici delle zone",
           "advanced_tariff": "Componenti tariffarie avanzate",
           "energy_forecast": "Energia e previsioni",
-          "joint_plan": "Pianificazione energetica congiunta",
+          "joint_plan": "Pianificazione energetica integrata",
           "dhw": "Acqua calda sanitaria (ACS)",
           "advanced_settings": "Calibrazione e impostazioni avanzate",
           "display": "Interfaccia"
